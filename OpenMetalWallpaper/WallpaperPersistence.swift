@@ -2,10 +2,10 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperPersistence.swift
- Description: Persist per-wallpaper settings AND active wallpaper state.
+ Description: Persistence with Rotation field.
 */
 
-import Foundation
+import Cocoa
 
 struct WallpaperConfig: Codable {
     var volume: Float = 0.5
@@ -15,12 +15,12 @@ struct WallpaperConfig: Codable {
     var videoScale: CGFloat = 1.0
     var xOffset: CGFloat = 0.0
     var yOffset: CGFloat = 0.0
+    var backgroundColor: String? = "0,0,0"
+    var rotation: Int = 0
 }
 
 class WallpaperPersistence {
     static let shared = WallpaperPersistence()
-    
-    // --- 1. 壁纸具体参数设置 ---
     
     private func makeConfigKey(monitor: String, wallpaperId: String) -> String {
         let safeMonitor = monitor.data(using: .utf8)?.base64EncodedString() ?? "unknown"
@@ -39,8 +39,6 @@ class WallpaperPersistence {
         guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(WallpaperConfig.self, from: data)
     }
-    
-    // --- 2. 记录显示器当前正在播放哪个壁纸 (新增) ---
     
     private func makeActiveKey(monitor: String) -> String {
         let safeMonitor = monitor.data(using: .utf8)?.base64EncodedString() ?? "unknown"

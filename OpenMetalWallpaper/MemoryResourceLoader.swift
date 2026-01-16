@@ -1,28 +1,27 @@
 /*
  License: AGPLv3
  Author: laobamac
- File: VideoResourceLoader.swift
- Description: Handles loading video data from memory to avoid disk I/O loops.
+ File: MemoryResourceLoader.swift
+ Description: Helper to load video data from RAM for AVPlayer.
 */
 
-import AVFoundation
 import Foundation
+import AVFoundation
 
 class MemoryResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
-    private let data: Data
-    private let contentType: String
+    let data: Data
+    let contentType: String
     
     init(data: Data, contentType: String) {
         self.data = data
         self.contentType = contentType
-        super.init()
     }
     
     func resourceLoader(_ resourceLoader: AVAssetResourceLoader, shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
-        if let contentInformationRequest = loadingRequest.contentInformationRequest {
-            contentInformationRequest.contentType = self.contentType
-            contentInformationRequest.contentLength = Int64(data.count)
-            contentInformationRequest.isByteRangeAccessSupported = true
+        if let contentRequest = loadingRequest.contentInformationRequest {
+            contentRequest.contentType = self.contentType
+            contentRequest.contentLength = Int64(data.count)
+            contentRequest.isByteRangeAccessSupported = true
         }
         
         if let dataRequest = loadingRequest.dataRequest {
@@ -33,11 +32,9 @@ class MemoryResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
             let end = min(requestedOffset + requestedLength, data.count)
             
             if start < data.count {
-                let subData = data.subdata(in: start..<end)
-                dataRequest.respond(with: subData)
+                let subdata = data.subdata(in: start..<end)
+                dataRequest.respond(with: subdata)
                 loadingRequest.finishLoading()
-            } else {
-                loadingRequest.finishLoading(with: NSError(domain: "com.laobamac.omw", code: -1, userInfo: nil))
             }
         }
         
