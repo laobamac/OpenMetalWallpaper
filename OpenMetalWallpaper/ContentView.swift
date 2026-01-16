@@ -2,12 +2,13 @@
  License: AGPLv3
  Author: laobamac
  File: ContentView.swift
- Description: UI with Strict ID Checks (Fixes bleeding) and Reset Button.
+ Description: UI with Global Pause Sync.
 */
 
 import SwiftUI
 import UniformTypeIdentifiers
 
+// Monitor Struct
 struct Monitor: Identifiable, Hashable {
     let id: String; let name: String; let screen: NSScreen
     static func getAll() -> [Monitor] { return NSScreen.screens.map { Monitor(id: $0.localizedName, name: $0.localizedName, screen: $0) } }
@@ -63,7 +64,18 @@ struct ContentView: View {
                 HStack(spacing: 16) {
                     Button(action: { isImporting = true }) { Label("添加", systemImage: "plus") }
                     Divider().frame(height: 20)
-                    Button(action: toggleGlobalPause) { Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2) }.buttonStyle(.borderless).help(isGlobalPaused ? "继续播放" : "暂停播放")
+                    
+                    // 暂停/播放 按钮
+                    Button(action: toggleGlobalPause) {
+                        Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(isGlobalPaused ? "继续播放" : "暂停播放")
+                    // --- 核心修复：监听全局暂停通知 ---
+                    .onReceive(NotificationCenter.default.publisher(for: .globalPauseDidChange)) { _ in
+                        self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused
+                    }
+                    
                     Button(action: stopCurrentMonitor) { Label("停止当前屏幕", systemImage: "square.fill") }.buttonStyle(.bordered).tint(.red)
                     Spacer()
                     Button(action: { showSettings = true }) { Label("设置", systemImage: "gearshape") }
@@ -74,7 +86,7 @@ struct ContentView: View {
         } detail: {
             if let wallpaper = selectedWallpaper, let monitor = selectedMonitor {
                 WallpaperInspector(wallpaper: wallpaper, monitor: monitor)
-                    .id(wallpaper.id) // 强制刷新，防止 UI 状态残留
+                    .id(wallpaper.id)
             } else {
                 Text("选择一张壁纸以编辑属性").foregroundColor(.secondary)
             }
@@ -97,7 +109,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in syncSelection() }
     }
     
-    // Logic
+    // Logic (Keep same)
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (urlData, error) in
@@ -126,7 +138,7 @@ struct ContentView: View {
     }
     private func refreshMonitors() { monitors = Monitor.getAll(); if !monitors.contains(where: { $0.id == selectedMonitor?.id }) { selectedMonitor = monitors.first } }
     private func applyWallpaper(_ wallpaper: WallpaperProject) { guard let monitor = selectedMonitor?.screen, let path = wallpaper.absolutePath else { return }; WallpaperEngine.shared.play(url: path, wallpaperId: wallpaper.id, screen: monitor, loadToMemory: loadToMemory); self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused }
-    private func toggleGlobalPause() { WallpaperEngine.shared.togglePause(); self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused }
+    private func toggleGlobalPause() { WallpaperEngine.shared.togglePause() }
     private func stopCurrentMonitor() { guard let monitor = selectedMonitor?.screen else { return }; WallpaperEngine.shared.stop(screen: monitor); self.selectedWallpaper = nil; self.isGlobalPaused = false }
 }
 
@@ -163,11 +175,8 @@ struct WallpaperInspector: View {
                         Button("恢复默认") {
                             let controller = WallpaperEngine.shared.getController(for: monitor.screen)
                             controller.resetSettings()
-                            // resetSettings 会触发 Notification，UI 会自动 reload
-                        }
-                        .font(.caption)
+                        }.font(.caption)
                     }
-                    
                     if !isWeb {
                         Picker("模式", selection: $scaleMode) { ForEach(WallpaperScaleMode.allCases) { mode in Text(mode.label).tag(mode) } }.pickerStyle(.radioGroup).onChange(of: scaleMode) { syncToEngine() }
                         if scaleMode == .custom {
@@ -183,17 +192,13 @@ struct WallpaperInspector: View {
                                 Divider()
                             }.padding(.leading, 8).transition(.opacity)
                         }
-                    } else {
-                        Text("Web 壁纸自动适应屏幕").font(.caption).foregroundColor(.secondary)
-                    }
+                    } else { Text("Web 壁纸自动适应屏幕").font(.caption).foregroundColor(.secondary) }
                     HStack {
                         Text("旋转")
                         Spacer()
                         Picker("", selection: $rotation) { Text("0°").tag(0); Text("90°").tag(90); Text("180°").tag(180); Text("270°").tag(270) }.pickerStyle(.menu).frame(width: 100)
                     }.onChange(of: rotation) { syncToEngine() }
-                    
                     if isWeb { HStack { Text("背景颜色 (Web)"); Spacer(); ColorPicker("", selection: $backgroundColor, supportsOpacity: false).labelsHidden() }.onChange(of: backgroundColor) { syncToEngine() } }
-                    
                     Divider()
                     Text("播放").font(.headline)
                     HStack { Text("音量"); Spacer(); Text("\(Int(volume * 100))%") }
@@ -207,7 +212,6 @@ struct WallpaperInspector: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .onAppear(perform: loadFromEngine)
-        // 监听所有状态变化
         .onChange(of: volume) { syncToEngine() }
         .onChange(of: playbackRate) { syncToEngine() }
         .onChange(of: isLoopEnabled) { syncToEngine() }
@@ -216,60 +220,37 @@ struct WallpaperInspector: View {
         .onChange(of: manualOffsetY) { syncToEngine() }
         .onChange(of: rotation) { syncToEngine() }
         .onChange(of: backgroundColor) { syncToEngine() }
-        // 监听外部事件
         .onChange(of: monitor) { loadFromEngine() }
-        .onChange(of: wallpaper.id) { loadFromEngine() }
-        // 监听 Notification，确保 Reset 后或 Play 完成后 UI 刷新
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in loadFromEngine() }
     }
     
     private func loadFromEngine() {
         let controller = WallpaperEngine.shared.getController(for: monitor.screen)
-        
-        // 只有当引擎正在播放当前 UI 选中的壁纸时，才读取数据
         if controller.currentWallpaperID == wallpaper.id {
-            self.volume = controller.volume
-            self.playbackRate = controller.playbackRate
-            self.isLoopEnabled = controller.isLooping
-            self.scaleMode = controller.scaleMode
-            self.manualScale = controller.videoScale == 0 ? 1.0 : controller.videoScale
-            self.manualOffsetX = controller.xOffset
-            self.manualOffsetY = controller.yOffset
-            self.backgroundColor = Color(nsColor: controller.backgroundColor)
+            self.volume = controller.volume; self.playbackRate = controller.playbackRate; self.isLoopEnabled = controller.isLooping
+            self.scaleMode = controller.scaleMode; self.manualScale = controller.videoScale == 0 ? 1.0 : controller.videoScale
+            self.manualOffsetX = controller.xOffset; self.manualOffsetY = controller.yOffset; self.backgroundColor = Color(nsColor: controller.backgroundColor)
             self.rotation = controller.rotation
         }
     }
     
     private func syncToEngine() {
         let controller = WallpaperEngine.shared.getController(for: monitor.screen)
-        
-        // 只有当引擎已经切换到当前壁纸时，才允许写入
         guard controller.currentWallpaperID == wallpaper.id else { return }
-        
-        controller.volume = self.volume
-        controller.playbackRate = self.playbackRate
-        if controller.isLooping != self.isLoopEnabled {
-            controller.isLooping = self.isLoopEnabled
-            // 这里不需要重新 play，因为 didSet 会处理
-            controller.isLooping = self.isLoopEnabled
-        }
+        controller.volume = self.volume; controller.playbackRate = self.playbackRate
+        if controller.isLooping != self.isLoopEnabled { controller.isLooping = self.isLoopEnabled }
         controller.scaleMode = self.scaleMode
-        if self.scaleMode == .custom {
-            controller.videoScale = self.manualScale
-            controller.xOffset = self.manualOffsetX
-            controller.yOffset = self.manualOffsetY
-        }
-        controller.backgroundColor = NSColor(self.backgroundColor)
-        controller.rotation = self.rotation
+        if self.scaleMode == .custom { controller.videoScale = self.manualScale; controller.xOffset = self.manualOffsetX; controller.yOffset = self.manualOffsetY }
+        controller.backgroundColor = NSColor(self.backgroundColor); controller.rotation = self.rotation
     }
 }
 
-// Subviews
+// Subviews (Keep Same)
 struct SidebarView: View {
     @Binding var selectedCategory: String?
     var body: some View {
         VStack(spacing: 0) {
-            List(selection: $selectedCategory) { Section(header: Text("壁纸库")) { Label("已安装", systemImage: "externaldrive.fill").tag("installed") }; Section(header: Text("发现")) { Label("创意工坊（未完成）", systemImage: "globe").tag("workshop") } }.listStyle(.sidebar)
+            List(selection: $selectedCategory) { Section(header: Text("壁纸库")) { Label("已安装", systemImage: "externaldrive.fill").tag("installed") }; Section(header: Text("发现")) { Label("创意工坊", systemImage: "globe").tag("workshop") } }.listStyle(.sidebar)
             Spacer()
             VStack(alignment: .leading, spacing: 10) { Divider(); Link(destination: URL(string: "https://github.com/laobamac/OpenMetalWallpaper")!) { HStack(alignment: .center, spacing: 12) { if let logoImage = NSImage(named: "AppLogo") { Image(nsImage: logoImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40) } else { Image(nsImage: NSApp.applicationIconImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40) }; VStack(alignment: .leading, spacing: 0) { Text("OpenMetalWallpaper").font(.system(size: 13, weight: .bold)).foregroundColor(.primary).lineLimit(1).minimumScaleFactor(0.8); Text("By laobamac").font(.caption).foregroundColor(.secondary) } } }.buttonStyle(.plain).padding(.top, 4); HStack { Text("License: AGPLv3").font(.system(size: 10, weight: .bold, design: .monospaced)).padding(4).background(Color.gray.opacity(0.2)).cornerRadius(4); Spacer() } }.padding().background(Color(nsColor: .controlBackgroundColor))
         }

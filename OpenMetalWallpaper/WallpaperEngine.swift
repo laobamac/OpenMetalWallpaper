@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperEngine.swift
- Description: Manager with Reset Logic and Clean State Switching.
+ Description: Manager with Strict Pause Enforcement (Fixes Auto-Resume on Edit).
 */
 
 import Cocoa
@@ -11,6 +11,7 @@ import WebKit
 
 extension Notification.Name {
     static let wallpaperDidChange = Notification.Name("omw_wallpaper_did_change")
+    static let globalPauseDidChange = Notification.Name("omw_global_pause_did_change")
 }
 
 extension NSView {
@@ -23,7 +24,6 @@ extension NSView {
     }
 }
 
-// Enum WallpaperScaleMode
 enum WallpaperScaleMode: Int, CaseIterable, Identifiable {
     case fill = 0, fit = 1, stretch = 2, custom = 3
     var id: Int { rawValue }
@@ -55,21 +55,36 @@ class ScreenController: NSObject {
     var currentWallpaperID: String?
     var isPlaying: Bool = false
     var isMemoryMode: Bool = false
-    
-    // 加载锁
     private var isLoading: Bool = false
     
-    // 属性
-    var volume: Float = 0.5 { didSet { runOnMain { self.currentPlayer?.setVolume(self.volume) }; saveSettings() } }
-    var playbackRate: Float = 1.0 { didSet { if isPlaying { runOnMain { self.currentPlayer?.setPlaybackRate(self.playbackRate) } }; saveSettings() } }
+    // --- 属性监听 (核心修复：防止修改属性导致自动播放) ---
+    
+    var volume: Float = 0.5 {
+        didSet {
+            // 音量可以随时改，不影响播放状态
+            self.currentPlayer?.setVolume(self.volume)
+            saveSettings()
+        }
+    }
+    
+    var playbackRate: Float = 1.0 {
+        didSet {
+            // 核心修复：如果当前是全局暂停状态，严禁设置播放器速率！
+            // 因为 AVPlayer.rate = 1.0 会自动触发播放。
+            if !WallpaperEngine.shared.isGlobalPaused && isPlaying {
+                self.currentPlayer?.setPlaybackRate(self.playbackRate)
+            }
+            saveSettings()
+        }
+    }
+    
     var isLooping: Bool = true { didSet { saveSettings() } }
     
-    var scaleMode: WallpaperScaleMode = .fill { didSet { runOnMain { self.updatePlayerScaling() }; saveSettings() } }
-    var videoScale: CGFloat = 1.0 { didSet { if scaleMode == .custom { runOnMain { self.updatePlayerScaling() } }; saveSettings() } }
-    var xOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { runOnMain { self.updatePlayerScaling() } }; saveSettings() } }
-    var yOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { runOnMain { self.updatePlayerScaling() } }; saveSettings() } }
-    
-    var rotation: Int = 0 { didSet { runOnMain { self.updatePlayerScaling() }; saveSettings() } }
+    var scaleMode: WallpaperScaleMode = .fill { didSet { self.updatePlayerScaling(); saveSettings() } }
+    var videoScale: CGFloat = 1.0 { didSet { if scaleMode == .custom { self.updatePlayerScaling() }; saveSettings() } }
+    var xOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { self.updatePlayerScaling() }; saveSettings() } }
+    var yOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { self.updatePlayerScaling() }; saveSettings() } }
+    var rotation: Int = 0 { didSet { self.updatePlayerScaling(); saveSettings() } }
     
     var backgroundColor: NSColor = .black {
         didSet {
@@ -109,7 +124,10 @@ class ScreenController: NSObject {
     }
     
     private func updatePlayerScaling() {
-        currentPlayer?.updateScaling(mode: scaleMode, scale: videoScale, x: xOffset, y: yOffset, rotation: rotation)
+        guard !isLoading else { return }
+        runOnMain {
+            self.currentPlayer?.updateScaling(mode: self.scaleMode, scale: self.videoScale, x: self.xOffset, y: self.yOffset, rotation: self.rotation)
+        }
     }
     
     private func colorToString(_ color: NSColor) -> String {
@@ -123,22 +141,20 @@ class ScreenController: NSObject {
     }
     
     private func saveSettings() {
-        // 如果正在加载，或者没有 ID，严禁保存
         guard !isLoading, let wId = currentWallpaperID else { return }
-        
         let config = WallpaperConfig(
             volume: volume, playbackRate: playbackRate, scaleMode: scaleMode.rawValue, isLooping: isLooping,
             videoScale: videoScale, xOffset: xOffset, yOffset: yOffset,
-            backgroundColor: colorToString(backgroundColor),
-            rotation: rotation
+            backgroundColor: colorToString(backgroundColor), rotation: rotation
         )
         WallpaperPersistence.shared.save(config: config, monitor: screen.localizedName, wallpaperId: wId)
     }
     
+    // --- 恢复默认设置 ---
     func resetSettings() {
-        // 开启锁，防止中间状态被保存
         self.isLoading = true
         
+        // 重置内部状态
         self.volume = 0.5
         self.playbackRate = 1.0
         self.isLooping = true
@@ -149,19 +165,24 @@ class ScreenController: NSObject {
         self.rotation = 0
         self.backgroundColor = .black
         
-        // 应用到播放器
         runOnMain {
+            // 应用状态到播放器
             self.currentPlayer?.setVolume(0.5)
-            self.currentPlayer?.setPlaybackRate(1.0)
             self.currentPlayer?.setBackgroundColor(.black)
-            self.updatePlayerScaling()
+            self.currentPlayer?.updateScaling(mode: .fill, scale: 1.0, x: 0, y: 0, rotation: 0)
+            
+            // 核心修复：只有在未暂停时才应用速率，防止自动播放
+            if !WallpaperEngine.shared.isGlobalPaused {
+                self.currentPlayer?.setPlaybackRate(1.0)
+            } else {
+                // 如果是暂停状态，确保它真的停住了
+                self.currentPlayer?.pause()
+            }
         }
         
         self.isLoading = false
-        // 手动保存一次
         self.saveSettings()
         
-        // 通知 UI 更新
         NotificationCenter.default.post(name: .wallpaperDidChange, object: nil, userInfo: ["monitor": self.screen.localizedName])
     }
     
@@ -173,7 +194,6 @@ class ScreenController: NSObject {
             self.backgroundColor = stringToColor(config.backgroundColor ?? "0,0,0")
             self.rotation = config.rotation
         } else {
-            // 默认值
             self.volume = 0.5; self.playbackRate = 1.0; self.scaleMode = .fill
             self.isLooping = true; self.videoScale = 1.0; self.xOffset = 0; self.yOffset = 0; self.backgroundColor = .black; self.rotation = 0
         }
@@ -182,21 +202,13 @@ class ScreenController: NSObject {
     func play(url: URL, wallpaperId: String, loadToMemory: Bool) {
         DispatchQueue.main.async {
             self.isLoading = true
-            
             if self.window == nil { self.setupWindow() }
             self._stop(keepWindow: true)
             
-            self.rotation = 0
-            self.scaleMode = .fill
-            self.volume = 0.5
-            
-            self.currentURL = url
-            self.currentWallpaperID = wallpaperId
-            self.isMemoryMode = loadToMemory
-            self.isPlaying = true
+            self.rotation = 0; self.scaleMode = .fill; self.volume = 0.5
+            self.currentURL = url; self.currentWallpaperID = wallpaperId; self.isMemoryMode = loadToMemory; self.isPlaying = true
             
             WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: wallpaperId)
-            
             self.loadSettings(wallpaperId: wallpaperId)
             
             let ext = url.pathExtension.lowercased()
@@ -214,8 +226,12 @@ class ScreenController: NSObject {
             player.load(url: url, options: options)
             self.currentPlayer = player
             
-            self.isLoading = false
+            // 初始检查：如果全局暂停，立即停止
+            if WallpaperEngine.shared.isGlobalPaused {
+                player.pause()
+            }
             
+            self.isLoading = false
             NotificationCenter.default.post(name: .wallpaperDidChange, object: nil, userInfo: ["monitor": self.screen.localizedName])
         }
     }
@@ -230,11 +246,20 @@ class ScreenController: NSObject {
         NotificationCenter.default.post(name: .wallpaperDidChange, object: nil)
     }
     
-    func pause() { runOnMain { self.currentPlayer?.pause() } }
-    func resume() { runOnMain { self.currentPlayer?.resume() } }
+    // --- 控制逻辑 ---
+    func pause() {
+        runOnMain { self.currentPlayer?.pause() }
+    }
+    
+    func resume() {
+        runOnMain {
+            self.currentPlayer?.resume()
+            // 恢复播放时，重新应用速率，因为之前可能被 pause 覆盖了
+            self.currentPlayer?.setPlaybackRate(self.playbackRate)
+        }
+    }
 }
 
-// WallpaperEngine Class
 class WallpaperEngine: NSObject {
     static let shared = WallpaperEngine()
     private var screenControllers: [String: ScreenController] = [:]
@@ -284,7 +309,17 @@ class WallpaperEngine: NSObject {
     func stopWallpaper(id: String) { DispatchQueue.main.async { for (_, c) in self.screenControllers { if c.currentWallpaperID == id { c.stop() } } } }
     func restoreSessions(library: WallpaperLibrary) { DispatchQueue.main.async { for (screenID, controller) in self.screenControllers { if let lastID = WallpaperPersistence.shared.loadActiveWallpaper(monitor: screenID) { if let wallpaper = library.wallpapers.first(where: { $0.id == lastID }), let path = wallpaper.absolutePath { let loadToMemory = UserDefaults.standard.bool(forKey: "omw_loadToMemory"); controller.play(url: path, wallpaperId: lastID, loadToMemory: loadToMemory) } } } } }
     func stop(screen: NSScreen) { getController(for: screen).stop() }
-    func togglePause() { isGlobalPaused.toggle(); DispatchQueue.main.async { self.screenControllers.values.forEach { self.isGlobalPaused ? $0.pause() : $0.resume() } } }
+    
+    // --- 切换全局暂停 ---
+    func togglePause() {
+        isGlobalPaused.toggle()
+        DispatchQueue.main.async {
+            self.screenControllers.values.forEach { self.isGlobalPaused ? $0.pause() : $0.resume() }
+            // 通知 UI 刷新按钮
+            NotificationCenter.default.post(name: .globalPauseDidChange, object: nil)
+        }
+    }
+    
     func updateSettings() { self.pauseOnAppFocus = UserDefaults.standard.bool(forKey: "omw_pauseOnAppFocus"); checkAppFocusState() }
     @objc func appDidActivate(_ notification: Notification) { checkAppFocusState() }
     private func checkAppFocusState() { guard pauseOnAppFocus, !isGlobalPaused else { return }; guard let app = NSWorkspace.shared.frontmostApplication else { return }; let isFinder = app.bundleIdentifier == "com.apple.finder"; let isMe = app.bundleIdentifier == Bundle.main.bundleIdentifier; DispatchQueue.main.async { if isFinder || isMe { if self.isSystemPaused { self.isSystemPaused = false; self.screenControllers.values.forEach { if $0.isPlaying { $0.resume() } } } } else { if !self.isSystemPaused { self.isSystemPaused = true; self.screenControllers.values.forEach { $0.pause() } } } } }
