@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: ContentView.swift
- Description: Main UI with Auto-Selection Sync.
+ Description: UI with Delete-Stop logic.
 */
 
 import SwiftUI
@@ -30,6 +30,10 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var isImporting = false
     @State private var isGlobalPaused: Bool = false
+    
+    @State private var showNewWallpaperSheet = false
+    @State private var pendingVideoURL: URL?
+    @State private var newWallpaperName: String = ""
     
     @AppStorage("omw_loadToMemory") private var loadToMemory: Bool = false
     
@@ -67,11 +71,15 @@ struct ContentView: View {
                                             }
                                         }
                                         Divider()
-                                        Button("从列表移除", role: .destructive) {
+                                        Button("从列表移除") {
+                                            WallpaperEngine.shared.stopWallpaper(id: wallpaper.id)
                                             library.removeWallpaper(id: wallpaper.id, deleteFile: false)
-                                            if selectedWallpaper?.id == wallpaper.id {
-                                                selectedWallpaper = nil
-                                            }
+                                            if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
+                                        }
+                                        Button("删除壁纸文件 (物理删除)", role: .destructive) {
+                                            WallpaperEngine.shared.stopWallpaper(id: wallpaper.id)
+                                            library.removeWallpaper(id: wallpaper.id, deleteFile: true)
+                                            if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
                                         }
                                     }
                                     .overlay(
@@ -109,6 +117,9 @@ struct ContentView: View {
                 .background(Material.bar)
             }
             .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                handleDrop(providers: providers)
+            }
             
         } detail: {
             if let wallpaper = selectedWallpaper, let monitor = selectedMonitor {
@@ -126,32 +137,65 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showNewWallpaperSheet) {
+            VStack(spacing: 20) {
+                Text("新建视频壁纸").font(.headline)
+                TextField("壁纸名称", text: $newWallpaperName).textFieldStyle(.roundedBorder).frame(width: 300)
+                HStack {
+                    Button("取消") { showNewWallpaperSheet = false; pendingVideoURL = nil }.keyboardShortcut(.cancelAction)
+                    Button("创建") {
+                        if let url = pendingVideoURL {
+                            library.importVideoFile(url: url, title: newWallpaperName)
+                            showNewWallpaperSheet = false
+                            pendingVideoURL = nil
+                        }
+                    }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
+                }
+            }.padding().frame(width: 350, height: 150)
+        }
         .onAppear {
             if selectedMonitor == nil { selectedMonitor = monitors.first }
-            // 启动时同步一次
             syncSelection()
         }
-        // 关键：当显示器切换时，或者后台播放状态改变时，更新 UI 选中状态
         .onChange(of: selectedMonitor) { syncSelection() }
-        .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in
-            syncSelection()
-        }
+        .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in syncSelection() }
     }
     
-    // Logic
+    // Logic (Keep same logic methods)
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (urlData, error) in
+            DispatchQueue.main.async {
+                if let urlData = urlData as? Data, let url = URL(dataRepresentation: urlData, relativeTo: nil) {
+                    var isDir: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
+                        if isDir.boolValue {
+                            library.importFromFolder(url: url)
+                        } else {
+                            let ext = url.pathExtension.lowercased()
+                            if ["mp4", "webm", "mov", "m4v", "avi"].contains(ext) {
+                                self.pendingVideoURL = url
+                                self.newWallpaperName = url.deletingPathExtension().lastPathComponent
+                                self.showNewWallpaperSheet = true
+                            } else if ext == "html" || ext == "htm" {
+                                library.importFromFolder(url: url.deletingLastPathComponent())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true
+    }
+    
     private func syncSelection() {
         guard let monitor = selectedMonitor?.screen else { return }
         let controller = WallpaperEngine.shared.getController(for: monitor)
-        
         if let currentId = controller.currentWallpaperID {
             if let wallpaper = library.wallpapers.first(where: { $0.id == currentId }) {
                 self.selectedWallpaper = wallpaper
             }
-        } else {
-            // 如果没在播放，清空选中
-            // self.selectedWallpaper = nil
         }
-        
         self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused
     }
     
@@ -174,16 +218,14 @@ struct ContentView: View {
     private func stopCurrentMonitor() {
         guard let monitor = selectedMonitor?.screen else { return }
         WallpaperEngine.shared.stop(screen: monitor)
-        self.selectedWallpaper = nil // 清空选中
+        self.selectedWallpaper = nil
         self.isGlobalPaused = false
     }
 }
 
-// Subviews (Components)
-
+// Subviews (SidebarView, Header, Inspector, EmptyState - Same as before)
 struct SidebarView: View {
     @Binding var selectedCategory: String?
-    
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedCategory) {
@@ -200,7 +242,7 @@ struct SidebarView: View {
                 Divider()
                 Link(destination: URL(string: "https://github.com/laobamac/OpenMetalWallpaper")!) {
                     HStack(alignment: .center, spacing: 12) {
-                        if let logoImage = NSImage(named: "AppIcon") {
+                        if let logoImage = NSImage(named: "AppLogo") {
                             Image(nsImage: logoImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
                         } else {
                             Image(nsImage: NSApp.applicationIconImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
@@ -341,6 +383,7 @@ struct EmptyStateView: View {
         VStack(spacing: 20) {
             Image(systemName: "photo.on.rectangle.angled").font(.system(size: 60)).foregroundColor(.secondary)
             Text("没有找到壁纸").font(.title)
+            Text("拖放视频文件或文件夹到此处").font(.caption).foregroundColor(.secondary)
             Button("立即导入") { isImporting = true }.buttonStyle(.borderedProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

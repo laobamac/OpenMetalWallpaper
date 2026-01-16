@@ -2,12 +2,13 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperModel.swift
- Description: Model with persistence support (Bookmarks).
+ Description: Model with Main-Thread UI updates for deletion.
 */
 
 import Foundation
 import Combine
 import SwiftUI
+import AVFoundation
 
 struct WallpaperProject: Codable, Identifiable {
     var id: String { file ?? UUID().uuidString }
@@ -15,14 +16,14 @@ struct WallpaperProject: Codable, Identifiable {
     let file: String?
     let type: String?
     let preview: String?
+    let description: String?
     
     // 运行时属性
     var absolutePath: URL?
     var thumbnailPath: URL?
     
-    // 编码白名单：只保存 JSON 里的原始字段，不保存运行时路径
     private enum CodingKeys: String, CodingKey {
-        case title, file, type, preview
+        case title, file, type, preview, description
     }
 }
 
@@ -30,70 +31,72 @@ class WallpaperLibrary: ObservableObject {
     @Published var wallpapers: [WallpaperProject] = []
     
     private let bookmarksKey = "omw_folder_bookmarks"
+    private let storagePathKey = "omw_library_storage_path"
+    
+    var storageURL: URL {
+        if let path = UserDefaults.standard.string(forKey: storagePathKey) {
+            return URL(fileURLWithPath: path)
+        }
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let defaultPath = appSupport.appendingPathComponent("OpenMetalWallpaper").appendingPathComponent("Wallpapers")
+        try? FileManager.default.createDirectory(at: defaultPath, withIntermediateDirectories: true)
+        return defaultPath
+    }
     
     init() {
         restoreBookmarks()
+        importFromFolder(url: storageURL)
+    }
+    
+    // --- Import Logic ---
+    func importVideoFile(url: URL, title: String) {
+        let safeTitle = title.isEmpty ? url.deletingPathExtension().lastPathComponent : title
+        let folderName = safeTitle.components(separatedBy: CharacterSet(charactersIn: "/\\?%*|\"<>:")).joined()
+        let destinationFolder = storageURL.appendingPathComponent(folderName)
+        let videoExt = url.pathExtension
+        let destVideoURL = destinationFolder.appendingPathComponent("video.\(videoExt)")
+        let destThumbURL = destinationFolder.appendingPathComponent("preview.jpg")
+        let destJsonURL = destinationFolder.appendingPathComponent("project.json")
+        
+        do {
+            try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: destVideoURL.path) { try FileManager.default.removeItem(at: destVideoURL) }
+            try FileManager.default.copyItem(at: url, to: destVideoURL)
+            generateThumbnail(videoURL: destVideoURL, destination: destThumbURL)
+            let newProject = WallpaperProject(title: safeTitle, file: "video.\(videoExt)", type: "video", preview: "preview.jpg", description: nil, absolutePath: nil, thumbnailPath: nil)
+            let jsonData = try JSONEncoder().encode(newProject)
+            try jsonData.write(to: destJsonURL)
+            importFromFolder(url: destinationFolder)
+        } catch { print("Import video failed: \(error)") }
+    }
+    
+    private func generateThumbnail(videoURL: URL, destination: URL) {
+        let asset = AVAsset(url: videoURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        let time = CMTime(seconds: 1, preferredTimescale: 60)
+        do {
+            let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
+            let nsImage = NSImage(cgImage: cgImage, size: .zero)
+            if let tiff = nsImage.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff), let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
+                try jpeg.write(to: destination)
+            }
+        } catch { print("Thumbnail error: \(error)") }
+    }
+    
+    func setStoragePath(_ url: URL) {
+        UserDefaults.standard.set(url.path, forKey: storagePathKey)
+        importFromFolder(url: url)
     }
     
     func importFromFolder(url: URL) {
-        // 创建Bookmark
-        do {
-            let bookmarkData = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
-            
-            // 保存到 UserDefaults
-            var bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] ?? [:]
-            bookmarks[url.absoluteString] = bookmarkData
-            UserDefaults.standard.set(bookmarks, forKey: bookmarksKey)
-            
-            // 解析文件
-            parseFolder(url: url)
-        } catch {
-            print("保存书签失败: \(error)")
-        }
-    }
-    
-    // 恢复上次导入的文件夹
-    private func restoreBookmarks() {
-        let bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] ?? [:]
-        
-        for (_, data) in bookmarks {
-            var isStale = false
-            do {
-                let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
-                
-                if isStale {
-                    // 书签过期
-                    print("书签过期: \(url)")
-                }
-                
-                if url.startAccessingSecurityScopedResource() {
-                    parseFolder(url: url)
-                    // 这里不停止访问 (stopAccessing)，因为整个 App 生命周期都需要读取
-                }
-            } catch {
-                print("解析书签失败: \(error)")
-            }
-        }
-    }
-    
-    // 删除壁纸
-    func removeWallpaper(id: String, deleteFile: Bool) {
-        guard let index = wallpapers.firstIndex(where: { $0.id == id }) else { return }
-        let wallpaper = wallpapers[index]
-        
-        if deleteFile, let path = wallpaper.absolutePath {
-            // 删除物理文件
-            let folder = path.deletingLastPathComponent()
-            try? FileManager.default.removeItem(at: folder)
-        }
-        
-        // 从列表移除
-        wallpapers.remove(at: index)
-    }
-    
-    private func parseFolder(url: URL) {
+        saveBookmark(for: url)
         let fileManager = FileManager.default
-        // 递归查找 project.json
+        let directJson = url.appendingPathComponent("project.json")
+        if fileManager.fileExists(atPath: directJson.path) {
+            parseProjectJSON(url: directJson)
+            return
+        }
         if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil) {
             for case let fileURL as URL in enumerator {
                 if fileURL.lastPathComponent == "project.json" {
@@ -103,27 +106,64 @@ class WallpaperLibrary: ObservableObject {
         }
     }
     
+    private func saveBookmark(for url: URL) {
+        do {
+            let bookmarkData = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+            var bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] ?? [:]
+            bookmarks[url.absoluteString] = bookmarkData
+            UserDefaults.standard.set(bookmarks, forKey: bookmarksKey)
+        } catch { print("Bookmark error: \(error)") }
+    }
+    
+    private func restoreBookmarks() {
+        let bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] ?? [:]
+        for (_, data) in bookmarks {
+            var isStale = false
+            do {
+                let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
+                if url.startAccessingSecurityScopedResource() { importFromFolder(url: url) }
+            } catch { print("Resolve error: \(error)") }
+        }
+    }
+    
+    func removeWallpaper(id: String, deleteFile: Bool) {
+        guard let index = wallpapers.firstIndex(where: { $0.id == id }) else { return }
+        let wallpaper = wallpapers[index]
+        
+        if deleteFile, let path = wallpaper.absolutePath {
+            let folder = path.deletingLastPathComponent()
+            do {
+                try FileManager.default.removeItem(at: folder)
+                print("Physically deleted: \(folder.path)")
+            } catch {
+                print("Delete file failed: \(error)")
+            }
+        }
+        
+        DispatchQueue.main.async {
+            // 再次检查索引，防止异步期间数组变动
+            if let verifyIndex = self.wallpapers.firstIndex(where: { $0.id == id }) {
+                self.wallpapers.remove(at: verifyIndex)
+                print("Removed from library list")
+            }
+        }
+    }
+    
     private func parseProjectJSON(url: URL) {
         do {
             let data = try Data(contentsOf: url)
             var project = try JSONDecoder().decode(WallpaperProject.self, from: data)
-            
             let folder = url.deletingLastPathComponent()
             project.absolutePath = folder.appendingPathComponent(project.file ?? "")
             if let preview = project.preview {
                 project.thumbnailPath = folder.appendingPathComponent(preview)
             }
-            
-            // 避免重复显示
             if !wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
-                if project.type?.lowercased() == "video" {
-                    DispatchQueue.main.async {
-                        self.wallpapers.append(project)
-                    }
+                let type = project.type?.lowercased() ?? ""
+                if type == "video" || type == "web" || type == "html" {
+                    DispatchQueue.main.async { self.wallpapers.append(project) }
                 }
             }
-        } catch {
-            // 忽略非标准 JSON
-        }
+        } catch { }
     }
 }

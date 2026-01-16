@@ -2,13 +2,13 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperEngine.swift
- Description: Multi-monitor manager with Re-creation Fix.
+ Description: Engine with stop-by-ID capability.
 */
 
 import Cocoa
 import AVFoundation
+import WebKit
 
-// 定义通知名称
 extension Notification.Name {
     static let wallpaperDidChange = Notification.Name("omw_wallpaper_did_change")
 }
@@ -18,9 +18,7 @@ enum WallpaperScaleMode: Int, CaseIterable, Identifiable {
     case fit = 1
     case stretch = 2
     case custom = 3
-    
     var id: Int { self.rawValue }
-    
     var label: String {
         switch self {
         case .fill: return "填充 (Cover)"
@@ -29,7 +27,6 @@ enum WallpaperScaleMode: Int, CaseIterable, Identifiable {
         case .custom: return "自定义 (Custom)"
         }
     }
-    
     var videoGravity: AVLayerVideoGravity {
         switch self {
         case .fill: return .resizeAspectFill
@@ -44,24 +41,23 @@ class ScreenController: NSObject {
     let screen: NSScreen
     var window: NSWindow?
     private var backgroundView: NSView!
-    private var playerLayer: AVPlayerLayer?
     
+    private var playerLayer: AVPlayerLayer?
     private var queuePlayer: AVQueuePlayer?
     private var singlePlayer: AVPlayer?
     private var looper: AVPlayerLooper?
     private var endObserver: NSObjectProtocol?
     private var resourceLoaderDelegate: MemoryResourceLoader?
+    private var webView: WKWebView?
     
     var currentURL: URL?
     var currentWallpaperID: String?
     var isMemoryMode: Bool = false
     var isPlaying: Bool = false
     
-    // Properties
     var volume: Float = 0.5 { didSet { updatePlayers(); saveSettings() } }
     var playbackRate: Float = 1.0 { didSet { if isPlaying { applyRate() }; saveSettings() } }
     var isLooping: Bool = true { didSet { saveSettings() } }
-    
     var scaleMode: WallpaperScaleMode = .fill {
         didSet {
             playerLayer?.videoGravity = scaleMode.videoGravity
@@ -69,7 +65,6 @@ class ScreenController: NSObject {
             saveSettings()
         }
     }
-    
     var videoScale: CGFloat = 1.0 { didSet { if scaleMode == .custom { updateLayerTransform(); saveSettings() } } }
     var xOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { updateLayerTransform(); saveSettings() } } }
     var yOffset: CGFloat = 0.0 { didSet { if scaleMode == .custom { updateLayerTransform(); saveSettings() } } }
@@ -86,43 +81,31 @@ class ScreenController: NSObject {
                                  styleMask: [.borderless],
                                  backing: .buffered,
                                  defer: false)
-        
         newWindow.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopIconWindow)) - 1)
         newWindow.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         newWindow.backgroundColor = .black
         newWindow.hasShadow = false
         newWindow.isOpaque = true
-        
         backgroundView = NSView(frame: NSRect(origin: .zero, size: screenRect.size))
         backgroundView.wantsLayer = true
         backgroundView.layer = CALayer()
         backgroundView.layer?.backgroundColor = NSColor.black.cgColor
-        
         newWindow.contentView = backgroundView
         self.window = newWindow
         self.window?.makeKeyAndOrderFront(nil)
     }
     
-    private func updatePlayers() {
-        queuePlayer?.volume = volume
-        singlePlayer?.volume = volume
-    }
-    
+    private func updatePlayers() { queuePlayer?.volume = volume; singlePlayer?.volume = volume }
     private func saveSettings() {
         guard let wId = currentWallpaperID else { return }
         let config = WallpaperConfig(volume: volume, playbackRate: playbackRate, scaleMode: scaleMode.rawValue, isLooping: isLooping, videoScale: videoScale, xOffset: xOffset, yOffset: yOffset)
         WallpaperPersistence.shared.save(config: config, monitor: screen.localizedName, wallpaperId: wId)
     }
-    
     private func loadSettings(wallpaperId: String) {
         if let config = WallpaperPersistence.shared.load(monitor: screen.localizedName, wallpaperId: wallpaperId) {
-            self.volume = config.volume
-            self.playbackRate = config.playbackRate
-            self.isLooping = config.isLooping
+            self.volume = config.volume; self.playbackRate = config.playbackRate; self.isLooping = config.isLooping
             self.scaleMode = WallpaperScaleMode(rawValue: config.scaleMode) ?? .fill
-            self.videoScale = config.videoScale
-            self.xOffset = config.xOffset
-            self.yOffset = config.yOffset
+            self.videoScale = config.videoScale; self.xOffset = config.xOffset; self.yOffset = config.yOffset
         } else {
             self.volume = 0.5; self.playbackRate = 1.0; self.scaleMode = .fill
             self.isLooping = true; self.videoScale = 1.0; self.xOffset = 0; self.yOffset = 0
@@ -130,12 +113,8 @@ class ScreenController: NSObject {
     }
     
     func play(url: URL, wallpaperId: String, loadToMemory: Bool) {
-        if window == nil {
-            setupWindow()
-        }
-        
-        stop(keepWindow: true) // 停止旧播放器
-        
+        if window == nil { setupWindow() }
+        stop(keepWindow: true)
         self.currentURL = url
         self.currentWallpaperID = wallpaperId
         self.isMemoryMode = loadToMemory
@@ -144,19 +123,29 @@ class ScreenController: NSObject {
         WallpaperPersistence.shared.saveActiveWallpaper(monitor: screen.localizedName, wallpaperId: wallpaperId)
         loadSettings(wallpaperId: wallpaperId)
         
-        if loadToMemory { playInMemory(url: url) } else { playFromDisk(url: url) }
+        let ext = url.pathExtension.lowercased()
+        if ext == "html" || ext == "htm" { playWeb(url: url) }
+        else { if loadToMemory { playInMemory(url: url) } else { playFromDisk(url: url) } }
         
         NotificationCenter.default.post(name: .wallpaperDidChange, object: nil, userInfo: ["monitor": screen.localizedName])
+    }
+    
+    private func playWeb(url: URL) {
+        let config = WKWebViewConfiguration()
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        let wv = WKWebView(frame: backgroundView.bounds, configuration: config)
+        wv.autoresizingMask = [.width, .height]
+        wv.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        backgroundView.addSubview(wv)
+        self.webView = wv
     }
     
     private func playFromDisk(url: URL) {
         let playerItem = AVPlayerItem(url: url)
         let player = AVQueuePlayer(playerItem: playerItem)
         player.volume = self.volume
-        
         if isLooping { self.looper = AVPlayerLooper(player: player, templateItem: playerItem) }
         else { player.actionAtItemEnd = .pause }
-        
         self.queuePlayer = player
         setupLayer(player: player)
         applyRate()
@@ -172,12 +161,10 @@ class ScreenController: NSObject {
             let customUrl = URL(string: "streaming-\(url.lastPathComponent)")!
             let asset = AVURLAsset(url: customUrl)
             asset.resourceLoader.setDelegate(loader, queue: DispatchQueue.main)
-            
             let playerItem = AVPlayerItem(asset: asset)
             let player = AVPlayer(playerItem: playerItem)
             player.volume = self.volume
             self.singlePlayer = player
-            
             if let oldObserver = endObserver { NotificationCenter.default.removeObserver(oldObserver) }
             self.endObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { [weak self] _ in
                 guard let self = self else { return }
@@ -221,19 +208,13 @@ class ScreenController: NSObject {
     
     func stop(keepWindow: Bool = false) {
         isPlaying = false
-        if !keepWindow {
-            WallpaperPersistence.shared.saveActiveWallpaper(monitor: screen.localizedName, wallpaperId: nil)
-        }
+        if !keepWindow { WallpaperPersistence.shared.saveActiveWallpaper(monitor: screen.localizedName, wallpaperId: nil) }
         queuePlayer?.pause(); queuePlayer = nil; looper = nil
         if let observer = endObserver { NotificationCenter.default.removeObserver(observer); endObserver = nil }
         singlePlayer?.pause(); singlePlayer = nil; resourceLoaderDelegate = nil
         playerLayer?.removeFromSuperlayer(); playerLayer = nil
-        
-        if !keepWindow {
-            window?.orderOut(nil)
-            window = nil // 销毁窗口引用
-        }
-        
+        webView?.removeFromSuperview(); webView = nil
+        if !keepWindow { window?.orderOut(nil); window = nil }
         NotificationCenter.default.post(name: .wallpaperDidChange, object: nil)
     }
 }
@@ -280,6 +261,15 @@ class WallpaperEngine: NSObject {
     func play(url: URL, wallpaperId: String, screen: NSScreen, loadToMemory: Bool) {
         getController(for: screen).play(url: url, wallpaperId: wallpaperId, loadToMemory: loadToMemory)
         checkAppFocusState()
+    }
+    
+    // --- 新增：根据 ID 停止正在播放的壁纸 ---
+    func stopWallpaper(id: String) {
+        for (_, controller) in screenControllers {
+            if controller.currentWallpaperID == id {
+                controller.stop()
+            }
+        }
     }
     
     func restoreSessions(library: WallpaperLibrary) {
