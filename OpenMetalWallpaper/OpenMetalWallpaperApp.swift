@@ -66,24 +66,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    // 拦截关闭
+    // 拦截关闭 - Blocking and closing
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if sender === mainWindow {
-            NSApp.setActivationPolicy(.accessory) // 隐藏 Dock
-            sender.orderOut(nil) // 隐藏窗口
-            return false // 阻止销毁
+            NSApp.setActivationPolicy(.accessory) // 隐藏 - Hide from Dock
+            sender.orderOut(nil) // 隐藏窗口 - Hide window
+            return false // 阻止销毁 - Prevent destruction
         }
         return true
     }
     
     @objc func openMainWindow() {
-        NSApp.setActivationPolicy(.regular) // 显示 Dock
-        NSApp.activate(ignoringOtherApps: true) // 前台
+        NSApp.setActivationPolicy(.regular) // 显示 - Show in Dock
+        NSApp.activate(ignoringOtherApps: true) // 前台 - Bring to foreground
         
         if let window = mainWindow {
             window.makeKeyAndOrderFront(nil)
         } else {
-            // 兜底查找
+            // 兜底查找 - Bottom-line search
             if let found = NSApp.windows.first(where: { $0.styleMask.contains(.titled) }) {
                 self.mainWindow = found
                 found.delegate = self

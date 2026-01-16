@@ -58,10 +58,12 @@ class ScreenController: NSObject {
     private var isLoading: Bool = false
     
     // --- 属性监听 (核心修复：防止修改属性导致自动播放) ---
+    // --- Property monitoring (Core fix: prevents autoplay caused by property modification) ---
     
     var volume: Float = 0.5 {
         didSet {
             // 音量可以随时改，不影响播放状态
+            // The volume can be adjusted at any time without affecting playback.
             self.currentPlayer?.setVolume(self.volume)
             saveSettings()
         }
@@ -70,7 +72,9 @@ class ScreenController: NSObject {
     var playbackRate: Float = 1.0 {
         didSet {
             // 核心修复：如果当前是全局暂停状态，严禁设置播放器速率！
+            // Core fix: If currently in global pause state, strictly prohibit setting player rate!
             // 因为 AVPlayer.rate = 1.0 会自动触发播放。
+            // Because AVPlayer.rate = 1.0 will automatically trigger playback.
             if !WallpaperEngine.shared.isGlobalPaused && isPlaying {
                 self.currentPlayer?.setPlaybackRate(self.playbackRate)
             }
@@ -151,10 +155,11 @@ class ScreenController: NSObject {
     }
     
     // --- 恢复默认设置 ---
+    // --- Restore default settings ---
     func resetSettings() {
         self.isLoading = true
         
-        // 重置内部状态
+        // 重置内部状态 - Reset internal state
         self.volume = 0.5
         self.playbackRate = 1.0
         self.isLooping = true
@@ -166,16 +171,18 @@ class ScreenController: NSObject {
         self.backgroundColor = .black
         
         runOnMain {
-            // 应用状态到播放器
+            // 应用状态到播放器 - Application status to player
             self.currentPlayer?.setVolume(0.5)
             self.currentPlayer?.setBackgroundColor(.black)
             self.currentPlayer?.updateScaling(mode: .fill, scale: 1.0, x: 0, y: 0, rotation: 0)
             
             // 核心修复：只有在未暂停时才应用速率，防止自动播放
+            // Core fix: Only apply rate when not paused to prevent autoplay
             if !WallpaperEngine.shared.isGlobalPaused {
                 self.currentPlayer?.setPlaybackRate(1.0)
             } else {
                 // 如果是暂停状态，确保它真的停住了
+                // If it's paused, make sure it's actually stopped.
                 self.currentPlayer?.pause()
             }
         }
@@ -227,6 +234,7 @@ class ScreenController: NSObject {
             self.currentPlayer = player
             
             // 初始检查：如果全局暂停，立即停止
+            // Initial check: If the global system is paused, stop immediately.
             if WallpaperEngine.shared.isGlobalPaused {
                 player.pause()
             }
@@ -247,6 +255,7 @@ class ScreenController: NSObject {
     }
     
     // --- 控制逻辑 ---
+    // --- Control Logic ---
     func pause() {
         runOnMain { self.currentPlayer?.pause() }
     }
@@ -255,6 +264,7 @@ class ScreenController: NSObject {
         runOnMain {
             self.currentPlayer?.resume()
             // 恢复播放时，重新应用速率，因为之前可能被 pause 覆盖了
+            // When resuming playback, reapply the rate, as it may have been overridden by pause before
             self.currentPlayer?.setPlaybackRate(self.playbackRate)
         }
     }
@@ -316,6 +326,7 @@ class WallpaperEngine: NSObject {
         DispatchQueue.main.async {
             self.screenControllers.values.forEach { self.isGlobalPaused ? $0.pause() : $0.resume() }
             // 通知 UI 刷新按钮
+            // Notify UI to refresh button
             NotificationCenter.default.post(name: .globalPauseDidChange, object: nil)
         }
     }

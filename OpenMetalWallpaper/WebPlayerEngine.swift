@@ -147,7 +147,7 @@ class WebPlayerEngine: NSObject, WallpaperPlayer, WKNavigationDelegate, WKUIDele
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let color = options?.backgroundColor { setBackgroundColor(color) }
-        // 应用初始旋转
+        // 应用初始旋转 - Apply initial rotation
         if let rot = options?.rotation {
             updateScaling(mode: .fill, scale: 1.0, x: 0, y: 0, rotation: rot)
         }
@@ -194,6 +194,7 @@ class WebPlayerEngine: NSObject, WallpaperPlayer, WKNavigationDelegate, WKUIDele
     
     func updateScaling(mode: WallpaperScaleMode, scale: CGFloat, x: CGFloat, y: CGFloat, rotation: Int) {
         // transform-origin: center center 确保围绕中心旋转
+        // transform-origin: center center ensures rotation around center
         var js = """
         document.body.style.transform = 'rotate(\(rotation)deg)';
         document.body.style.transformOrigin = 'center center';
