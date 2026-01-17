@@ -1,10 +1,3 @@
-/*
- License: AGPLv3
- Author: laobamac
- File: VideoPlayerEngine.swift
- Description: Video Engine with Rotation support.
-*/
-
 import Cocoa
 import AVFoundation
 
@@ -18,6 +11,7 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
     
     private weak var containerView: NSView?
     private var options: WallpaperOptions?
+    private var currentURL: URL?
     
     func attach(to view: NSView) {
         self.containerView = view
@@ -25,6 +19,7 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
     
     func load(url: URL, options: WallpaperOptions) {
         self.options = options
+        self.currentURL = url
         stop()
         
         if options.isMemoryMode {
@@ -94,6 +89,51 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
         }
     }
     
+    func snapshot(completion: @escaping (NSImage?) -> Void) {
+        guard let url = self.currentURL else { completion(nil); return }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVAsset(url: url)
+            // 确保视频轨道存在
+            guard asset.tracks(withMediaType: .video).count > 0 else {
+                print("Snapshot failed: No video tracks found")
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            
+            // 重要：放宽时间容差，防止因为没有精确的关键帧而失败
+            generator.requestedTimeToleranceBefore = .positiveInfinity
+            generator.requestedTimeToleranceAfter = .positiveInfinity
+            
+            // 尝试获取 0.5 秒处的帧（比 0.1 更容易避开片头黑屏）
+            let time = CMTime(seconds: 0.5, preferredTimescale: 600)
+            
+            do {
+                let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
+                let size = NSSize(width: cgImage.width, height: cgImage.height)
+                // 修复：必须指定 Size，不能用 .zero，否则 NSWorkspace 可能无法识别
+                let nsImage = NSImage(cgImage: cgImage, size: size)
+                DispatchQueue.main.async { completion(nsImage) }
+            } catch {
+                print("Snapshot at 0.5s failed: \(error). Trying 0.0s...")
+                // 回退：尝试获取第 0 帧
+                do {
+                    let zeroTime = CMTime.zero
+                    let cgImage = try generator.copyCGImage(at: zeroTime, actualTime: nil)
+                    let size = NSSize(width: cgImage.width, height: cgImage.height)
+                    let nsImage = NSImage(cgImage: cgImage, size: size)
+                    DispatchQueue.main.async { completion(nsImage) }
+                } catch {
+                    print("Snapshot failed completely: \(error)")
+                    DispatchQueue.main.async { completion(nil) }
+                }
+            }
+        }
+    }
+    
     func stop() {
         queuePlayer?.pause(); queuePlayer = nil
         looper = nil
@@ -150,7 +190,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
         
         var transform = CGAffineTransform.identity
         
-        // 自定义模式下应用位移和缩放
         if mode == .custom {
             transform = transform.translatedBy(x: x, y: y)
             transform = transform.scaledBy(x: scale, y: scale)

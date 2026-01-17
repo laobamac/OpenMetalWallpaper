@@ -22,6 +22,8 @@ protocol WallpaperPlayer: NSObjectProtocol {
     func setBackgroundColor(_ color: NSColor)
     
     func updateScaling(mode: WallpaperScaleMode, scale: CGFloat, x: CGFloat, y: CGFloat, rotation: Int)
+    
+    func snapshot(completion: @escaping (NSImage?) -> Void)
 }
 
 struct WallpaperOptions {

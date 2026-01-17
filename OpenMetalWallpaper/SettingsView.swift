@@ -14,8 +14,9 @@ struct SettingsView: View {
     @AppStorage("omw_loadToMemory") private var loadToMemory: Bool = false
     @AppStorage("omw_pauseOnAppFocus") private var pauseOnAppFocus: Bool = false
     @AppStorage("omw_checkUpdateOnStartup") private var checkUpdateOnStartup: Bool = true
+    @AppStorage("omw_overrideLockScreen") private var overrideLockScreen: Bool = false // 新增开关
     
-    @State private var showClearDataAlert = false // 弹窗状态
+    @State private var showClearDataAlert = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -60,6 +61,10 @@ struct SettingsView: View {
                 
                 Section {
                     Toggle(NSLocalizedString("pause_on_app_focus", comment: ""), isOn: $pauseOnAppFocus)
+                    
+                    Toggle(NSLocalizedString("override_lock_screen", comment: ""), isOn: $overrideLockScreen)
+                    Text(NSLocalizedString("override_lock_screen_help", comment: ""))
+                        .font(.caption).foregroundColor(.secondary)
                 } header: {
                     Text(NSLocalizedString("automation_header", comment: ""))
                 }
@@ -112,7 +117,7 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(width: 500, height: 500) // 稍微增加高度以容纳新选项
+            .frame(width: 500, height: 600) // 略微增加高度
             
             Divider()
             

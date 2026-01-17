@@ -10,7 +10,6 @@
 "later_button" = "Later";
 "update_check_error" = "Update Check Error";
 "confirm_button" = "Confirm";
-
 /* SettingsView.swift */
 "preferences_title" = "Preferences";
 "wallpaper_library_header" = "Wallpaper Library";
@@ -22,6 +21,8 @@
 "preload_description" = "Enabling this option eliminates stuttering during loop playback.";
 "automation_header" = "Automation";
 "pause_on_app_focus" = "Pause when other apps are fullscreen/active";
+"override_lock_screen" = "Override Lock Screen";
+"override_lock_screen_help" = "Automatically sets the system wallpaper to a frame from the live wallpaper to match the lock screen.";
 "updates_header" = "Updates";
 "auto_check_updates" = "Automatically check for updates on startup";
 "current_version_text" = "Current version: %@";
@@ -85,7 +86,6 @@
 /* Sidebar */
 "library_header" = "Wallpaper Library";
 "discover_header" = "Discover";
-
 /* EmptyStateView */
 "no_wallpapers_found" = "No wallpapers found";
 "drag_drop_hint" = "Drag and drop video files or folders here";

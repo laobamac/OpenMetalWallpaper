@@ -10,7 +10,6 @@
 "later_button" = "以后再说";
 "update_check_error" = "更新检查错误";
 "confirm_button" = "确定";
-
 /* SettingsView.swift */
 "preferences_title" = "偏好设置";
 "wallpaper_library_header" = "壁纸库";
@@ -22,6 +21,8 @@
 "preload_description" = "启用此选项可消除循环播放时的卡顿。";
 "automation_header" = "自动化";
 "pause_on_app_focus" = "其他应用全屏/活动时暂停";
+"override_lock_screen" = "覆盖锁屏壁纸";
+"override_lock_screen_help" = "自动将视频/网页的一帧设置为系统桌面壁纸，使锁屏界面与动态壁纸保持一致。";
 "updates_header" = "更新";
 "auto_check_updates" = "启动时自动检查更新";
 "current_version_text" = "当前版本: %@";
@@ -60,7 +61,6 @@
 "open_main_window" = "打开主界面...";
 "check_updates_menu" = "检查更新...";
 "quit_app" = "退出 OpenMetalWallpaper";
-
 /* WallpaperInspector */
 "display_header" = "显示";
 "restore_defaults_button" = "恢复默认";
@@ -85,7 +85,6 @@
 /* Sidebar */
 "library_header" = "壁纸库";
 "discover_header" = "发现";
-
 /* EmptyStateView */
 "no_wallpapers_found" = "没有找到壁纸";
 "drag_drop_hint" = "拖放视频文件或文件夹到此处";

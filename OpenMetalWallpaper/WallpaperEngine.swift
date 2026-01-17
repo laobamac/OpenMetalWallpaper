@@ -40,7 +40,7 @@ enum WallpaperScaleMode: Int, CaseIterable, Identifiable {
         case .fill: return .resizeAspectFill
         case .fit: return .resizeAspect
         case .stretch: return .resize
-        case .custom: return .resizeAspectFill
+        case .custom: return .resizeAspect
         }
     }
 }
@@ -249,6 +249,33 @@ class ScreenController: NSObject {
             NotificationCenter.default.post(name: .wallpaperDidChange, object: nil, userInfo: ["monitor": self.screen.localizedName])
             
             NotificationCenter.default.post(name: Notification.Name("omw_restore_focus"), object: nil)
+            
+            if UserDefaults.standard.bool(forKey: "omw_overrideLockScreen") {
+            // 延迟 1.5 秒以确保视频已准备就绪或 Web 页面已加载完成
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                        guard let self = self, self.currentWallpaperID == wallpaperId else { return }
+                        self.currentPlayer?.snapshot { [weak self] image in
+                            guard let self = self, let img = image else { return }
+                            self.setSystemWallpaper(image: img)
+                        }
+                    }
+                }
+        }
+    }
+    
+    private func setSystemWallpaper(image: NSImage) {
+        // 保存图片到临时目录，文件名包含屏幕名称以防冲突
+        let safeName = screen.localizedName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+        let filename = "omw_lock_\(safeName).png"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+            
+        if let tiff = image.tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiff),
+            let pngData = bitmap.representation(using: .png, properties: [:]) {
+            try? pngData.write(to: tempURL)
+                
+            // 设置系统壁纸 (macOS 锁屏通常会跟随桌面壁纸)
+            try? NSWorkspace.shared.setDesktopImageURL(tempURL, for: self.screen, options: [:])
         }
     }
     

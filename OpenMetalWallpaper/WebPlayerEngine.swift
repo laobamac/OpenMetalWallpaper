@@ -190,6 +190,15 @@ class WebPlayerEngine: NSObject, WallpaperPlayer, WKNavigationDelegate, WKUIDele
             }
         }
     }
+
+    func snapshot(completion: @escaping (NSImage?) -> Void) {
+        guard let wv = webView else { completion(nil); return }
+        let config = WKSnapshotConfiguration()
+        config.rect = wv.bounds
+        wv.takeSnapshot(with: config) { image, _ in
+            completion(image)
+        }
+    }
     
     private func getTempPath(for url: URL) -> URL {
         return FileManager.default.temporaryDirectory.appendingPathComponent("omw_pause_\(url.hashValue).png")
