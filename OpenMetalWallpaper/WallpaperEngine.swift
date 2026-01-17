@@ -376,12 +376,12 @@ class WallpaperEngine: NSObject {
             self.refreshScreens()
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                print("当前检测到的屏幕数量: \(self.screenControllers.count)") // Current number of detected screens / 当前检测到的屏幕数量
+                print("当前检测到的屏幕数量 / Current number of detected screens: \(self.screenControllers.count)")
                 
                 for (screenID, controller) in self.screenControllers {
                     // Try to load last configuration / 尝试加载上次的配置
                     if let lastID = WallpaperPersistence.shared.loadActiveWallpaper(monitor: screenID) {
-                        print("正在为屏幕 \(screenID) 恢复壁纸: \(lastID)") // Restoring wallpaper for screen / 正在为屏幕恢复壁纸
+                        print("正在为屏幕 \(screenID) 恢复壁纸 / Restoring wallpaper for screen \(screenID): \(lastID)")
                         
                         if let wallpaper = library.wallpapers.first(where: { $0.id == lastID }),
                            let path = wallpaper.absolutePath {
@@ -391,7 +391,7 @@ class WallpaperEngine: NSObject {
                             // Play / 播放
                             controller.play(url: path, wallpaperId: lastID, loadToMemory: loadToMemory)
                         } else {
-                            print("未找到壁纸文件: \(lastID)") // Wallpaper file not found / 未找到壁纸文件
+                            print("未找到壁纸文件 / Wallpaper file not found: \(lastID)")
                         }
                     }
                 }
@@ -438,14 +438,14 @@ class WallpaperEngine: NSObject {
             DispatchQueue.main.async {
                 if isFinder || isMe {
                     if self.isSystemPaused {
-                        print("恢复播放 (Finder/App Active)") // Resume playback (Finder/App Active) / 恢复播放
+                        print("恢复播放 (Finder/App Active) / Resume playback (Finder/App Active)")
                         self.isSystemPaused = false
                         self.screenControllers.values.forEach { if $0.isPlaying { $0.resume() } }
                     }
                 } else {
                     // Other app in foreground, pause / 其他应用在前台，暂停
                     if !self.isSystemPaused {
-                        print("暂停播放 (Other App Active: \(app.localizedName ?? "Unknown"))") // Pause playback (Other App Active) / 暂停播放
+                        print("暂停播放 (Other App Active: \(app.localizedName ?? "Unknown")) / Pause playback (Other App Active: \(app.localizedName ?? "Unknown"))")
                         self.isSystemPaused = true
                         self.screenControllers.values.forEach { $0.pause() }
                     }

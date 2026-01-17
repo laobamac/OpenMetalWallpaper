@@ -32,16 +32,16 @@ class LaunchManager: ObservableObject {
             if isLaunchAtLoginEnabled {
                 if SMAppService.mainApp.status != .enabled {
                     try SMAppService.mainApp.register()
-                    print("✅ 开机自启已启用") // Launch at login enabled / 开机自启已启用
+                    print("✅ 开机自启已启用 / Launch at login enabled")
                 }
             } else {
                 if SMAppService.mainApp.status == .enabled {
                     try SMAppService.mainApp.unregister()
-                    print("❎ 开机自启已禁用") // Launch at login disabled / 开机自启已禁用
+                    print("❎ 开机自启已禁用 / Launch at login disabled")
                 }
             }
         } catch {
-            print("🔴 更改开机自启状态失败: \(error)") // Failed to change launch at login status / 更改开机自启状态失败
+            print("🔴 更改开机自启状态失败 / Failed to change launch at login status: \(error)")
             // If failed, roll back status display / 如果失败，回滚状态显示
             DispatchQueue.main.async {
                 self.isLaunchAtLoginEnabled = SMAppService.mainApp.status == .enabled

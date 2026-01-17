@@ -58,13 +58,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.findAndSetupMainWindow()
             
             if let lib = self.library {
-                print("开始恢复壁纸会话...") // Start restoring wallpaper sessions / 开始恢复壁纸会话
+                print("开始恢复壁纸会话... / Start restoring wallpaper sessions")
                 WallpaperEngine.shared.restoreSessions(library: lib)
             }
             
             // If NSApp.isActive is false, it means silent startup/login item / 如果 NSApp.isActive 为 false，说明是静默启动/开机自启
             if !NSApp.isActive {
-                print("检测到后台启动，隐藏主界面") // Detected background startup, hiding main window / 检测到后台启动，隐藏主界面
+                print("检测到后台启动，隐藏主界面 / Detected background startup, hiding main window")
                 self.hideMainWindow()
             } else {
                 // If manually double-clicked to launch, ensure window is in front / 如果是手动双击启动，确保窗口在前
@@ -97,7 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 window.orderFrontRegardless()
                 window.deminiaturize(nil)
             } else {
-                print("未找到主窗口引用，尝试通过 App 激活") // Main window reference not found, trying to activate via App / 未找到主窗口引用，尝试通过 App 激活
+                print("未找到主窗口引用，尝试通过 App 激活 / Main window reference not found, trying to activate via App")
             }
         }
     }
