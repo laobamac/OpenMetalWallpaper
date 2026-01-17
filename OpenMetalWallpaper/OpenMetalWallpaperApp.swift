@@ -120,7 +120,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     
     @objc func detectMainWindow(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        if window.styleMask.contains(.titled) {
+        
+        // Filter out system panels (About panel, alerts, etc.) and other non-main windows
+        // Only capture windows that are our main app window, not system dialogs
+        if window.styleMask.contains(.titled) && 
+           window.identifier?.rawValue != "WallpaperWindow" &&
+           !(window is NSPanel) {
             self.mainWindow = window
             window.delegate = self
             window.isReleasedWhenClosed = false
@@ -128,7 +133,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if sender.styleMask.contains(.titled) {
+        // Only intercept closing for our main window, not system panels (About, alerts, etc.)
+        if sender.styleMask.contains(.titled) && 
+           sender.identifier?.rawValue != "WallpaperWindow" &&
+           !(sender is NSPanel) &&
+           sender == mainWindow {
             self.hideMainWindow()
             return false
         }
