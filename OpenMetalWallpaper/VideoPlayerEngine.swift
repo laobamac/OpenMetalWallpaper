@@ -92,12 +92,19 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
     func snapshot(completion: @escaping (NSImage?) -> Void) {
         guard let url = self.currentURL else { completion(nil); return }
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task {
             let asset = AVAsset(url: url)
             // Ensure video track exists / 确保视频轨道存在
-            guard asset.tracks(withMediaType: .video).count > 0 else {
-                print("Snapshot failed: No video tracks found")
-                DispatchQueue.main.async { completion(nil) }
+            do {
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                guard tracks.count > 0 else {
+                    print("Snapshot failed: No video tracks found")
+                    await MainActor.run { completion(nil) }
+                    return
+                }
+            } catch {
+                print("Snapshot failed: Unable to load video tracks - \(error)")
+                await MainActor.run { completion(nil) }
                 return
             }
 
@@ -116,7 +123,7 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
                 let size = NSSize(width: cgImage.width, height: cgImage.height)
                 // Fix: Must specify Size, cannot use .zero, otherwise NSWorkspace may not recognize / 修复：必须指定 Size，不能用 .zero，否则 NSWorkspace 可能无法识别
                 let nsImage = NSImage(cgImage: cgImage, size: size)
-                DispatchQueue.main.async { completion(nsImage) }
+                await MainActor.run { completion(nsImage) }
             } catch {
                 print("Snapshot at 0.5s failed: \(error). Trying 0.0s...")
                 // Fallback: Try to get frame 0 / 回退：尝试获取第 0 帧
@@ -125,10 +132,10 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
                     let cgImage = try generator.copyCGImage(at: zeroTime, actualTime: nil)
                     let size = NSSize(width: cgImage.width, height: cgImage.height)
                     let nsImage = NSImage(cgImage: cgImage, size: size)
-                    DispatchQueue.main.async { completion(nsImage) }
+                    await MainActor.run { completion(nsImage) }
                 } catch {
                     print("Snapshot failed completely: \(error)")
-                    DispatchQueue.main.async { completion(nil) }
+                    await MainActor.run { completion(nil) }
                 }
             }
         }
