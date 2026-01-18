@@ -258,7 +258,7 @@ class WebPlayerEngine: NSObject, WallpaperPlayer, WKNavigationDelegate, WKUIDele
 
         self.options?.rotation = rotation
             
-        var js = """
+        let js = """
         document.body.style.transform = 'rotate(\(rotation)deg)';
         document.body.style.transformOrigin = 'center center';
         """

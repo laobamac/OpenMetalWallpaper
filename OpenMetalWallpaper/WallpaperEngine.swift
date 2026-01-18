@@ -62,7 +62,7 @@ class ScreenController: NSObject {
     var isMemoryMode: Bool = false
     private var isLoading: Bool = false
     
-    // 记录上一次设置的临时锁屏壁纸路径，用于清理
+    // Record the last temporary lock screen wallpaper path for cleanup / 记录上一次设置的临时锁屏壁纸路径，用于清理
     private var lastLockScreenURL: URL?
     
     var volume: Float = 0.5 {
@@ -254,7 +254,7 @@ class ScreenController: NSObject {
             NotificationCenter.default.post(name: Notification.Name("omw_restore_focus"), object: nil)
             
             if UserDefaults.standard.bool(forKey: "omw_overrideLockScreen") {
-                // 延迟 1.5 秒以确保视频已准备就绪或 Web 页面已加载完成
+                // Delay 1.5 seconds to ensure video is ready or web page is loaded / 延迟 1.5 秒以确保视频已准备就绪或 Web 页面已加载完成
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                     guard let self = self, self.currentWallpaperID == wallpaperId else { return }
                     self.currentPlayer?.snapshot { [weak self] image in
@@ -267,12 +267,12 @@ class ScreenController: NSObject {
     }
     
     private func setSystemWallpaper(image: NSImage) {
-        // 清理旧文件
+        // Cleanup old file / 清理旧文件
         if let lastURL = self.lastLockScreenURL {
             try? FileManager.default.removeItem(at: lastURL)
         }
         
-        // 使用 UUID 生成唯一文件名，强制系统识别为新壁纸
+        // Use UUID to generate unique filename, forcing system to recognize as new wallpaper / 使用 UUID 生成唯一文件名，强制系统识别为新壁纸
         let uniqueID = UUID().uuidString
         let safeName = screen.localizedName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
         let filename = "omw_lock_\(safeName)_\(uniqueID).png"
@@ -285,7 +285,7 @@ class ScreenController: NSObject {
             let pngData = bitmap.representation(using: .png, properties: [:]) {
             do {
                 try pngData.write(to: tempURL)
-                // 设置系统壁纸
+                // Set system wallpaper / 设置系统壁纸
                 try NSWorkspace.shared.setDesktopImageURL(tempURL, for: self.screen, options: [:])
                 print("System wallpaper updated for lock screen override.")
             } catch {
@@ -376,32 +376,32 @@ class WallpaperEngine: NSObject {
             self.refreshScreens()
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                print("当前检测到的屏幕数量: \(self.screenControllers.count)")
+                print("当前检测到的屏幕数量 / Current number of detected screens: \(self.screenControllers.count)")
                 
                 for (screenID, controller) in self.screenControllers {
-                    // 尝试加载上次的配置
+                    // Try to load last configuration / 尝试加载上次的配置
                     if let lastID = WallpaperPersistence.shared.loadActiveWallpaper(monitor: screenID) {
-                        print("正在为屏幕 \(screenID) 恢复壁纸: \(lastID)")
+                        print("正在为屏幕 \(screenID) 恢复壁纸 / Restoring wallpaper for screen \(screenID): \(lastID)")
                         
                         if let wallpaper = library.wallpapers.first(where: { $0.id == lastID }),
                            let path = wallpaper.absolutePath {
                             
                             let loadToMemory = UserDefaults.standard.bool(forKey: "omw_loadToMemory")
                             
-                            // 播放
+                            // Play / 播放
                             controller.play(url: path, wallpaperId: lastID, loadToMemory: loadToMemory)
                         } else {
-                            print("未找到壁纸文件: \(lastID)")
+                            print("未找到壁纸文件 / Wallpaper file not found: \(lastID)")
                         }
                     }
                 }
                 
-                // 即使 App 在后台启动，我们也要运行一次 Focus Check
-                // 如果用户开启了“有窗口时暂停”，这里会正确判断
+                // Even if App starts in background, we need to run Focus Check once / 即使 App 在后台启动，我们也要运行一次 Focus Check
+                // If user has "pause when other apps are active" enabled, it will be judged correctly here / 如果用户开启了"有窗口时暂停"，这里会正确判断
                 self.checkAppFocusState()
                 
-                // 如果没有全局暂停，且不是系统暂停，强制所有 Controller 恢复播放
-                // 这是一个保险措施，防止开机时被卡在 paused 状态
+                // If not globally paused and not system paused, force all Controllers to resume playback / 如果没有全局暂停，且不是系统暂停，强制所有 Controller 恢复播放
+                // This is a safety measure to prevent being stuck in paused state on startup / 这是一个保险措施，防止开机时被卡在 paused 状态
                 if !self.isGlobalPaused && !self.isSystemPaused {
                     self.screenControllers.values.forEach {
                         if $0.isPlaying { $0.resume() }
@@ -438,14 +438,14 @@ class WallpaperEngine: NSObject {
             DispatchQueue.main.async {
                 if isFinder || isMe {
                     if self.isSystemPaused {
-                        print("恢复播放 (Finder/App Active)")
+                        print("恢复播放 (Finder/App Active) / Resume playback (Finder/App Active)")
                         self.isSystemPaused = false
                         self.screenControllers.values.forEach { if $0.isPlaying { $0.resume() } }
                     }
                 } else {
-                    // 其他应用在前台，暂停
+                    // Other app in foreground, pause / 其他应用在前台，暂停
                     if !self.isSystemPaused {
-                        print("暂停播放 (Other App Active: \(app.localizedName ?? "Unknown"))")
+                        print("暂停播放 (Other App Active: \(app.localizedName ?? "Unknown")) / Pause playback (Other App Active: \(app.localizedName ?? "Unknown"))")
                         self.isSystemPaused = true
                         self.screenControllers.values.forEach { $0.pause() }
                     }

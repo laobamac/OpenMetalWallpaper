@@ -97,7 +97,7 @@ struct SettingsView: View {
                 }
                 
                 Section {
-                    Toggle("开机自动启动", isOn: $launchManager.isLaunchAtLoginEnabled)
+                    Toggle(NSLocalizedString("launch_at_login", comment: ""), isOn: $launchManager.isLaunchAtLoginEnabled)
                     .toggleStyle(.switch)
                     Toggle(NSLocalizedString("auto_check_updates", comment: ""), isOn: $checkUpdateOnStartup)
                     HStack {
@@ -120,7 +120,7 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .frame(width: 500, height: 600) // 略微增加高度
+            .frame(width: 500, height: 600) // Slightly increased height / 略微增加高度
             
             Divider()
             

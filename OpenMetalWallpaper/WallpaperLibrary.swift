@@ -18,7 +18,7 @@ struct WallpaperProject: Codable, Identifiable {
     let preview: String?
     let description: String?
     
-    // 运行时属性
+    // Runtime properties / 运行时属性
     var absolutePath: URL?
     var thumbnailPath: URL?
     
@@ -159,12 +159,12 @@ class WallpaperLibrary: ObservableObject {
             }
             
             DispatchQueue.main.async {
-                // 防止重复添加
+                // Prevent duplicate addition / 防止重复添加
                 if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
                     let type = project.type?.lowercased() ?? ""
                     if type == "video" || type == "web" || type == "html" {
                         self.wallpapers.append(project)
-                        // 如果希望每次插入都重新排序（如果导入源较多）
+                        // If you want to re-sort each time insertion happens (if there are many import sources) / 如果希望每次插入都重新排序（如果导入源较多）
                         // self.wallpapers.sort { $0.title < $1.title }
                     }
                 }

@@ -92,3 +92,6 @@
 
 /* WallpaperCard */
 "unknown_source" = "未知来源";
+
+/* LaunchManager */
+"launch_at_login" = "开机自动启动";

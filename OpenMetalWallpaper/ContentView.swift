@@ -30,7 +30,7 @@ struct ContentView: View {
     @State private var newWallpaperName: String = ""
     @AppStorage("omw_loadToMemory") private var loadToMemory: Bool = false
     
-    // 动画命名空间
+    // Animation namespace / 动画命名空间
     @Namespace private var animationSpace
     
     var filteredWallpapers: [WallpaperProject] {
@@ -72,7 +72,7 @@ struct ContentView: View {
                     }
                 }
                 .padding()
-                // macOS 16+ 内容区域内缩，适应圆角窗口
+                // macOS 16+ content area inset, adapted to rounded window / macOS 16+ 内容区域内缩，适应圆角窗口
                 .padding(isMacOSTahoeOrLater() ? 10 : 0)
             }
         }
@@ -83,7 +83,7 @@ struct ContentView: View {
             Button(action: { isImporting = true }) { Label(NSLocalizedString("add_button", comment: ""), systemImage: "plus") }
             Divider().frame(height: 20)
             
-            // 暂停/播放 按钮
+            // Pause/Play button / 暂停/播放 按钮
             Button(action: toggleGlobalPause) {
                 Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2)
             }
@@ -98,7 +98,7 @@ struct ContentView: View {
             Button(action: { showSettings = true }) { Label(NSLocalizedString("settings_button", comment: ""), systemImage: "gearshape") }
         }
         .padding()
-        // macOS 16+ 使用玻璃材质替代默认的 Material.bar
+        // macOS 16+ uses glass material instead of default Material.bar / macOS 16+ 使用玻璃材质替代默认的 Material.bar
         .background(isMacOSTahoeOrLater() ? AnyView(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow).opacity(0.3)) : AnyView(Rectangle().fill(Material.bar)))
     }
     
@@ -111,20 +111,20 @@ struct ContentView: View {
                 .background(isMacOSTahoeOrLater() ? Color.clear : nil)
         } content: {
             VStack(spacing: 0) {
-                // 顶部显示器选择栏
+                // Top monitor selector bar / 顶部显示器选择栏
                 MonitorPickerHeader(monitors: monitors, selectedMonitor: $selectedMonitor, refreshAction: refreshMonitors)
                     .padding(.bottom, isMacOSTahoeOrLater() ? 8 : 0)
                 
-                // 提取的列表视图
+                // Extracted list view / 提取的列表视图
                 wallpaperList
                 
                 Divider()
                 
-                // 提取的底部工具栏
+                // Extracted bottom toolbar / 提取的底部工具栏
                 bottomToolbar
             }
             .navigationSplitViewColumnWidth(min: 400, ideal: 600)
-            .liquidGlassStyle() // 核心玻璃效果 (只在 macOS 16+ 生效)
+            .liquidGlassStyle() // Core glass effect (only active on macOS 16+) / 核心玻璃效果 (只在 macOS 16+ 生效)
             .cornerRadius(isMacOSTahoeOrLater() ? 16 : 0)
             .padding(isMacOSTahoeOrLater() ? 10 : 0)
             .animation(.smooth, value: filteredWallpapers.count)
@@ -191,7 +191,7 @@ struct ContentView: View {
     private func stopCurrentMonitor() { guard let monitor = selectedMonitor?.screen else { return }; WallpaperEngine.shared.stop(screen: monitor); self.selectedWallpaper = nil; self.isGlobalPaused = false }
 }
 
-// Subviews (保持不变)
+// Subviews (unchanged) / Subviews (保持不变)
 struct WallpaperInspector: View {
     let wallpaper: WallpaperProject
     let monitor: Monitor

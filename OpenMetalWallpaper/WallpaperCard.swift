@@ -13,7 +13,7 @@ struct WallpaperCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 缩略图区域
+            // Thumbnail area / 缩略图区域
             ZStack {
                 Color.black.opacity(0.3)
                 
@@ -30,7 +30,7 @@ struct WallpaperCard: View {
                         .foregroundColor(.gray)
                 }
                 
-                // 播放图标悬浮
+                // Play icon overlay on hover / 播放图标悬浮
                 if isHovering {
                     Color.black.opacity(0.4)
                     Image(systemName: "play.circle.fill")
@@ -40,7 +40,7 @@ struct WallpaperCard: View {
             }
             .frame(height: 120)
             
-            // 信息区域
+            // Information area / 信息区域
             VStack(alignment: .leading, spacing: 4) {
                 Text(wallpaper.title)
                     .font(.headline)

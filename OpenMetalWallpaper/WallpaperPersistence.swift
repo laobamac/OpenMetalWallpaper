@@ -64,8 +64,8 @@ class WallpaperPersistence {
         let dictionary = defaults.dictionaryRepresentation()
         
         dictionary.keys.forEach { key in
-            // 只清除壁纸配置 (omw_cfg_) 和活动壁纸记录 (omw_active_wp_)
-            // 保留书签 (omw_folder_bookmarks) 和全局设置 (omw_loadToMemory 等)
+            // Only clear wallpaper configurations (omw_cfg_) and active wallpaper records (omw_active_wp_) / 只清除壁纸配置 (omw_cfg_) 和活动壁纸记录 (omw_active_wp_)
+            // Keep bookmarks (omw_folder_bookmarks) and global settings (omw_loadToMemory etc.) / 保留书签 (omw_folder_bookmarks) 和全局设置 (omw_loadToMemory 等)
             if key.hasPrefix("omw_cfg_") || key.hasPrefix("omw_active_wp_") {
                 defaults.removeObject(forKey: key)
             }

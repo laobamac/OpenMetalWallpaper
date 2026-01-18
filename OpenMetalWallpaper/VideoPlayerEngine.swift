@@ -92,43 +92,50 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
     func snapshot(completion: @escaping (NSImage?) -> Void) {
         guard let url = self.currentURL else { completion(nil); return }
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task {
             let asset = AVAsset(url: url)
-            // 确保视频轨道存在
-            guard asset.tracks(withMediaType: .video).count > 0 else {
-                print("Snapshot failed: No video tracks found")
-                DispatchQueue.main.async { completion(nil) }
+            // Ensure video track exists / 确保视频轨道存在
+            do {
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                guard tracks.count > 0 else {
+                    print("Snapshot failed: No video tracks found")
+                    await MainActor.run { completion(nil) }
+                    return
+                }
+            } catch {
+                print("Snapshot failed: Unable to load video tracks - \(error)")
+                await MainActor.run { completion(nil) }
                 return
             }
 
             let generator = AVAssetImageGenerator(asset: asset)
             generator.appliesPreferredTrackTransform = true
             
-            // 重要：放宽时间容差，防止因为没有精确的关键帧而失败
+            // Important: Relax time tolerance to prevent failure due to lack of exact keyframes / 重要：放宽时间容差，防止因为没有精确的关键帧而失败
             generator.requestedTimeToleranceBefore = .positiveInfinity
             generator.requestedTimeToleranceAfter = .positiveInfinity
             
-            // 尝试获取 0.5 秒处的帧（比 0.1 更容易避开片头黑屏）
+            // Try to get frame at 0.5 seconds (easier to avoid opening black screen than 0.1) / 尝试获取 0.5 秒处的帧（比 0.1 更容易避开片头黑屏）
             let time = CMTime(seconds: 0.5, preferredTimescale: 600)
             
             do {
                 let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
                 let size = NSSize(width: cgImage.width, height: cgImage.height)
-                // 修复：必须指定 Size，不能用 .zero，否则 NSWorkspace 可能无法识别
+                // Fix: Must specify Size, cannot use .zero, otherwise NSWorkspace may not recognize / 修复：必须指定 Size，不能用 .zero，否则 NSWorkspace 可能无法识别
                 let nsImage = NSImage(cgImage: cgImage, size: size)
-                DispatchQueue.main.async { completion(nsImage) }
+                await MainActor.run { completion(nsImage) }
             } catch {
                 print("Snapshot at 0.5s failed: \(error). Trying 0.0s...")
-                // 回退：尝试获取第 0 帧
+                // Fallback: Try to get frame 0 / 回退：尝试获取第 0 帧
                 do {
                     let zeroTime = CMTime.zero
                     let cgImage = try generator.copyCGImage(at: zeroTime, actualTime: nil)
                     let size = NSSize(width: cgImage.width, height: cgImage.height)
                     let nsImage = NSImage(cgImage: cgImage, size: size)
-                    DispatchQueue.main.async { completion(nsImage) }
+                    await MainActor.run { completion(nsImage) }
                 } catch {
                     print("Snapshot failed completely: \(error)")
-                    DispatchQueue.main.async { completion(nil) }
+                    await MainActor.run { completion(nil) }
                 }
             }
         }

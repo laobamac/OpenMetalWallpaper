@@ -8,7 +8,7 @@
 import Cocoa
 import Foundation
 
-struct GitHubRelease: Codable, Sendable {
+struct GitHubRelease: Sendable {
     let tagName: String
     let htmlUrl: String
     let body: String
@@ -17,6 +17,22 @@ struct GitHubRelease: Codable, Sendable {
         case tagName = "tag_name"
         case htmlUrl = "html_url"
         case body
+    }
+}
+
+extension GitHubRelease: Codable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.tagName = try container.decode(String.self, forKey: .tagName)
+        self.htmlUrl = try container.decode(String.self, forKey: .htmlUrl)
+        self.body = try container.decode(String.self, forKey: .body)
+    }
+    
+    nonisolated func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(tagName, forKey: .tagName)
+        try container.encode(htmlUrl, forKey: .htmlUrl)
+        try container.encode(body, forKey: .body)
     }
 }
 

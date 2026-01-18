@@ -10,6 +10,7 @@
 "later_button" = "Later";
 "update_check_error" = "Update Check Error";
 "confirm_button" = "Confirm";
+
 /* SettingsView.swift */
 "preferences_title" = "Preferences";
 "wallpaper_library_header" = "Wallpaper Library";
@@ -35,7 +36,7 @@
 "reset_property_and_mem" = "Reset all property and memory data";
 "clear_all" = "Clear All";
 "confirm_clear_data" = "Confirm Clear Data";
-"clear_all_notice" = "This will delete all user data including wallpapers, settings and preferences. This action cannot be undone.(Wallpaper files wont be deleted.)";
+"clear_all_notice" = "This will delete all user data including wallpapers, settings and preferences. This action cannot be undone.(Wallpaper files won't be deleted.)";
 "clear_button" = "Clear";
 "maintenance" = "Maintenance";
 
@@ -86,6 +87,7 @@
 /* Sidebar */
 "library_header" = "Wallpaper Library";
 "discover_header" = "Discover";
+
 /* EmptyStateView */
 "no_wallpapers_found" = "No wallpapers found";
 "drag_drop_hint" = "Drag and drop video files or folders here";
@@ -93,3 +95,6 @@
 
 /* WallpaperCard */
 "unknown_source" = "Unknown Source";
+
+/* LaunchManager */
+"launch_at_login" = "Launch at Login";

@@ -30,10 +30,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var statusBarItem: NSStatusItem!
     var library: WallpaperLibrary?
     weak var mainWindow: NSWindow?
-    private var isRestoringSessions = false // 防止重复恢复
+    private var isRestoringSessions = false // Prevent duplicate restoration / 防止重复恢复
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 监听窗口激活，以便捕捉主窗口引用
+        // Listen for window activation to capture main window reference / 监听窗口激活，以便捕捉主窗口引用
         NotificationCenter.default.addObserver(self, selector: #selector(detectMainWindow(_:)), name: NSWindow.didBecomeKeyNotification, object: nil)
         
         statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -53,21 +53,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
         
-        // 稍微延长延迟，确保屏幕和系统服务已就绪
+        // Slightly extend delay to ensure screens and system services are ready / 稍微延长延迟，确保屏幕和系统服务已就绪
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.findAndSetupMainWindow()
             
             if let lib = self.library {
-                print("开始恢复壁纸会话...")
+                print("开始恢复壁纸会话... / Start restoring wallpaper sessions")
                 WallpaperEngine.shared.restoreSessions(library: lib)
             }
             
-            // 如果 NSApp.isActive 为 false，说明是静默启动/开机自启
+            // If NSApp.isActive is false, it means silent startup/login item / 如果 NSApp.isActive 为 false，说明是静默启动/开机自启
             if !NSApp.isActive {
-                print("检测到后台启动，隐藏主界面")
+                print("检测到后台启动，隐藏主界面 / Detected background startup, hiding main window")
                 self.hideMainWindow()
             } else {
-                // 如果是手动双击启动，确保窗口在前
+                // If manually double-clicked to launch, ensure window is in front / 如果是手动双击启动，确保窗口在前
                 self.openMainWindow()
             }
         }
@@ -78,7 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let window = self.mainWindow {
             window.orderOut(nil)
         }
-        // 只有真正隐藏了才切换策略，防止闪烁
+        // Only switch policy when actually hidden to prevent flickering / 只有真正隐藏了才切换策略，防止闪烁
         NSApp.setActivationPolicy(.accessory)
     }
     
@@ -86,10 +86,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         
         DispatchQueue.main.async {
-            // 激活 App
+            // Activate App / 激活 App
             NSApp.activate(ignoringOtherApps: true)
             
-            // 尝试查找或复用窗口
+            // Try to find or reuse window / 尝试查找或复用窗口
             self.findAndSetupMainWindow()
             
             if let window = self.mainWindow {
@@ -97,13 +97,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 window.orderFrontRegardless()
                 window.deminiaturize(nil)
             } else {
-                print("未找到主窗口引用，尝试通过 App 激活")
+                print("未找到主窗口引用，尝试通过 App 激活 / Main window reference not found, trying to activate via App")
             }
         }
     }
     
     func findAndSetupMainWindow() {
-        // 如果引用还在且有效，直接返回
+        // If reference is still valid, return directly / 如果引用还在且有效，直接返回
         if let current = self.mainWindow, current.isVisible || current.occlusionState.contains(.visible) {
             return
         }
@@ -113,14 +113,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let found = candidates.first {
             self.mainWindow = found
             found.delegate = self
-            found.isReleasedWhenClosed = false // 禁止释放
+            found.isReleasedWhenClosed = false // Disable release / 禁止释放
         }
     }
     
     
     @objc func detectMainWindow(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        if window.styleMask.contains(.titled) {
+        
+        // Filter out system panels (About panel, alerts, etc.) and other non-main windows
+        // Only capture windows that are our main app window, not system dialogs
+        if window.styleMask.contains(.titled) && 
+           window.identifier?.rawValue != "WallpaperWindow" &&
+           !(window is NSPanel) {
             self.mainWindow = window
             window.delegate = self
             window.isReleasedWhenClosed = false
@@ -128,7 +133,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if sender.styleMask.contains(.titled) {
+        // Only intercept closing for our main window, not system panels (About, alerts, etc.)
+        if sender.styleMask.contains(.titled) && 
+           sender.identifier?.rawValue != "WallpaperWindow" &&
+           !(sender is NSPanel) &&
+           sender == mainWindow {
             self.hideMainWindow()
             return false
         }
