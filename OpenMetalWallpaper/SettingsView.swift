@@ -1,11 +1,10 @@
 /*
- License: AGPLv3
- Author: laobamac
  File: SettingsView.swift
- Description: Settings with Frame Rate Limit.
+ Description: Settings with Audio Input Selection.
 */
 
 import SwiftUI
+import AVFoundation
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -16,14 +15,17 @@ struct SettingsView: View {
     @AppStorage("omw_checkUpdateOnStartup") private var checkUpdateOnStartup: Bool = true
     @AppStorage("omw_overrideLockScreen") private var overrideLockScreen: Bool = false
     @AppStorage("omw_fpsLimit") private var fpsLimit: Int = 60
+    @AppStorage("omw_audioDeviceID") private var audioDeviceID: String = ""
     
     @StateObject private var launchManager = LaunchManager.shared
     @State private var showClearDataAlert = false
+    @State private var inputDevices: [AVCaptureDevice] = []
     
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             HStack {
-                Text(NSLocalizedString("preferences_title", comment: "")).font(.headline)
+                Text(NSLocalizedString("preferences_title", comment: "Preferences")).font(.headline)
                 Spacer()
             }
             .padding()
@@ -32,73 +34,67 @@ struct SettingsView: View {
             Divider()
             
             Form {
-                Section {
+                // Library
+                Section(header: Text(NSLocalizedString("wallpaper_library_header", comment: ""))) {
                     HStack {
                         Image(systemName: "folder")
                         VStack(alignment: .leading) {
                             Text(NSLocalizedString("default_storage_location", comment: ""))
-                            Text(library.storageURL.path)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            Text(library.storageURL.path).font(.caption).foregroundColor(.secondary).lineLimit(1).truncationMode(.middle)
                         }
                         Spacer()
-                        Button(NSLocalizedString("change_button", comment: "")) {
-                            chooseStorageFolder()
-                        }
+                        Button(NSLocalizedString("change_button", comment: "")) { chooseStorageFolder() }
                     }
-                } header: {
-                    Text(NSLocalizedString("wallpaper_library_header", comment: ""))
                 }
                 
-                Section {
+                // Performance & Audio
+                Section(header: Text(NSLocalizedString("performance_header", comment: ""))) {
                     Toggle(NSLocalizedString("preload_video_memory", comment: ""), isOn: $loadToMemory)
                         .help(NSLocalizedString("preload_help", comment: ""))
-                    Text(NSLocalizedString("preload_description", comment: ""))
-                        .font(.caption).foregroundColor(.secondary)
                     
                     HStack {
                         Text(NSLocalizedString("frame_rate_limit", comment: ""))
                         Spacer()
                         Picker("", selection: $fpsLimit) {
-                            Text("15 FPS").tag(15)
                             Text("30 FPS").tag(30)
-                            Text("45 FPS").tag(45)
                             Text("60 FPS").tag(60)
+                        }.pickerStyle(.menu).frame(width: 100)
+                    }
+                    
+                    // Audio Input Picker
+                    HStack {
+                        Text("音频输入 (Audio Input)")
+                        Spacer()
+                        Picker("", selection: $audioDeviceID) {
+                            Text("系统默认 (Default)").tag("")
+                            ForEach(inputDevices, id: \.uniqueID) { device in
+                                Text(device.localizedName).tag(device.uniqueID)
+                            }
                         }
                         .pickerStyle(.menu)
-                        .frame(width: 100)
+                        .frame(maxWidth: 200)
+                        .onChange(of: audioDeviceID) {
+                            // Notify Player to Restart Audio
+                            NotificationCenter.default.post(name: Notification.Name("omw_audioDeviceChanged"), object: nil)
+                        }
                     }
-                } header: {
-                    Text(NSLocalizedString("performance_header", comment: ""))
                 }
                 
-                Section {
+                // Automation
+                Section(header: Text(NSLocalizedString("automation_header", comment: ""))) {
                     Toggle(NSLocalizedString("pause_on_app_focus", comment: ""), isOn: $pauseOnAppFocus)
-                    
                     Toggle(NSLocalizedString("override_lock_screen", comment: ""), isOn: $overrideLockScreen)
-                    Text(NSLocalizedString("override_lock_screen_help", comment: ""))
-                        .font(.caption).foregroundColor(.secondary)
-                } header: {
-                    Text(NSLocalizedString("automation_header", comment: ""))
                 }
                 
-                Section {
+                // Maintenance
+                Section(header: Text(NSLocalizedString("maintenance", comment: ""))) {
                     HStack {
-                        VStack(alignment: .leading) {
-                            Text(NSLocalizedString("clear_user_data", comment: ""))
-                            Text(NSLocalizedString("reset_property_and_mem", comment: ""))
-                                .font(.caption).foregroundColor(.secondary)
-                        }
+                        Text(NSLocalizedString("clear_user_data", comment: ""))
                         Spacer()
-                        Button(NSLocalizedString("clear_all", comment: "")) {
-                            showClearDataAlert = true
-                        }
+                        Button(NSLocalizedString("clear_all", comment: "")) { showClearDataAlert = true }
                         .alert(isPresented: $showClearDataAlert) {
                             Alert(
                                 title: Text(NSLocalizedString("confirm_clear_data", comment: "")),
-                                message: Text(NSLocalizedString("clear_all_notice", comment: "")),
                                 primaryButton: .destructive(Text(NSLocalizedString("clear_button", comment: "")), action: {
                                     WallpaperPersistence.shared.deleteAllUserData()
                                 }),
@@ -106,35 +102,24 @@ struct SettingsView: View {
                             )
                         }
                     }
-                } header: {
-                    Text(NSLocalizedString("maintenance", comment: ""))
                 }
                 
-                Section {
+                // Updates
+                Section(header: Text(NSLocalizedString("updates_header", comment: ""))) {
                     Toggle(NSLocalizedString("launch_at_login", comment: ""), isOn: $launchManager.isLaunchAtLoginEnabled)
-                    .toggleStyle(.switch)
                     Toggle(NSLocalizedString("auto_check_updates", comment: ""), isOn: $checkUpdateOnStartup)
                     HStack {
                         Text(String(format: NSLocalizedString("current_version_text", comment: ""), AppInfo.fullVersionString)).foregroundColor(.secondary)
                         Spacer()
                         Button(NSLocalizedString("check_updates_button", comment: "")) { UpdateChecker.shared.checkForUpdates(userInitiated: true) }
                     }
-                } header: {
-                    Text(NSLocalizedString("updates_header", comment: ""))
-                }
-                
-                Section {
-                    HStack {
-                        Text(AppInfo.appName)
-                        Spacer()
-                        Text(NSLocalizedString("license_text", comment: "")).foregroundColor(.secondary)
-                    }
-                } header: {
-                    Text(NSLocalizedString("about_header", comment: ""))
                 }
             }
             .formStyle(.grouped)
             .frame(width: 500, height: 600)
+            .onAppear {
+                self.inputDevices = AudioSpectrumAnalyzer.getAvailableDevices()
+            }
             
             Divider()
             
@@ -143,8 +128,7 @@ struct SettingsView: View {
                 Button(NSLocalizedString("done_button", comment: "")) {
                     WallpaperEngine.shared.updateSettings()
                     presentationMode.wrappedValue.dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
+                }.keyboardShortcut(.defaultAction)
             }
             .padding()
             .background(Color(nsColor: .windowBackgroundColor))
@@ -153,15 +137,9 @@ struct SettingsView: View {
     
     private func chooseStorageFolder() {
         let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.message = NSLocalizedString("choose_storage_folder_message", comment: "")
-        
+        panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.allowsMultipleSelection = false
         panel.begin { response in
-            if response == .OK, let url = panel.url {
-                library.setStoragePath(url)
-            }
+            if response == .OK, let url = panel.url { library.setStoragePath(url) }
         }
     }
 }

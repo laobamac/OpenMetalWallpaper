@@ -60,8 +60,8 @@ struct LiquidGlassModifier: ViewModifier {
 
 // Helper: SwiftUI uses NSVisualEffectView / 辅助：SwiftUI 使用 NSVisualEffectView
 struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
     
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()

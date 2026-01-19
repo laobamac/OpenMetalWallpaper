@@ -46,7 +46,7 @@
 "add_button" = "添加";
 "pause_help" = "暂停播放";
 "play_help" = "继续播放";
-"stop_current_screen" = "停止当前屏幕";
+"stop_button" = "停止当前屏幕";
 "settings_button" = "设置";
 "select_wallpaper_message" = "选择一张壁纸以编辑属性";
 "new_video_wallpaper_title" = "新建视频壁纸";

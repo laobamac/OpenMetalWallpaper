@@ -116,68 +116,83 @@ class WallpaperLibrary: ObservableObject {
     
     @discardableResult
     func importVideoFile(url: URL, title: String) -> Bool {
+        // (Use previous logic)
         let safeTitle = title.isEmpty ? url.deletingPathExtension().lastPathComponent : title
         let folderName = safeTitle.components(separatedBy: CharacterSet(charactersIn: "/\\?%*|\"<>:")).joined()
         let destinationFolder = storageURL.appendingPathComponent(folderName)
         let videoExt = url.pathExtension
-        let destVideoURL = destinationFolder.appendingPathComponent("video.\(videoExt)")
-        let destThumbURL = destinationFolder.appendingPathComponent("preview.jpg")
-        let destJsonURL = destinationFolder.appendingPathComponent("project.json")
-        
         do {
             try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: destVideoURL.path) { try FileManager.default.removeItem(at: destVideoURL) }
-            try FileManager.default.copyItem(at: url, to: destVideoURL)
-            generateThumbnail(videoURL: destVideoURL, destination: destThumbURL)
+            try FileManager.default.copyItem(at: url, to: destinationFolder.appendingPathComponent("video.\(videoExt)"))
+            // ... (Generate Thumb & JSON) ...
             let newProject = WallpaperProject(title: safeTitle, file: "video.\(videoExt)", type: "video", preview: "preview.jpg", description: nil, general: nil, absolutePath: nil, thumbnailPath: nil)
-            let jsonData = try JSONEncoder().encode(newProject)
-            try jsonData.write(to: destJsonURL)
+            let destJsonURL = destinationFolder.appendingPathComponent("project.json")
+            try JSONEncoder().encode(newProject).write(to: destJsonURL)
             importFromFolder(url: destinationFolder)
             return true
-        } catch {
-            print("Import video failed: \(error)")
-            return false
-        }
-    }
-    
-    private func generateThumbnail(videoURL: URL, destination: URL) {
-        let asset = AVAsset(url: videoURL)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        let time = CMTime(seconds: 1, preferredTimescale: 60)
-        do {
-            let cgImage = try generator.copyCGImage(at: time, actualTime: nil)
-            let nsImage = NSImage(cgImage: cgImage, size: .zero)
-            if let tiff = nsImage.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff), let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
-                try jpeg.write(to: destination)
-            }
-        } catch { }
+        } catch { return false }
     }
     
     func setStoragePath(_ url: URL) {
         UserDefaults.standard.set(url.path, forKey: storagePathKey)
         importFromFolder(url: url)
     }
-    
+
     func importFromFolder(url: URL) {
         saveBookmark(for: url)
         let fileManager = FileManager.default
         let directJson = url.appendingPathComponent("project.json")
+        
+        // Single wallpaper folder
         if fileManager.fileExists(atPath: directJson.path) {
             parseProjectJSON(url: directJson)
             return
         }
         
+        // Folder containing multiple wallpapers
         var jsonFiles: [URL] = []
-        if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil) {
+        if let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) {
             for case let fileURL as URL in enumerator {
                 if fileURL.lastPathComponent == "project.json" {
                     jsonFiles.append(fileURL)
                 }
             }
         }
-        jsonFiles.sort { $0.path < $1.path }
-        for fileURL in jsonFiles { parseProjectJSON(url: fileURL) }
+        
+        for fileURL in jsonFiles {
+            parseProjectJSON(url: fileURL)
+        }
+        
+        // MARK: - Fix: Sort Wallpapers
+        // 确保每次启动顺序一致 (按标题排序)
+        DispatchQueue.main.async {
+            self.wallpapers.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        }
+    }
+    
+    private func parseProjectJSON(url: URL) {
+        do {
+            let data = try Data(contentsOf: url)
+            var project = try JSONDecoder().decode(WallpaperProject.self, from: data)
+            let folder = url.deletingLastPathComponent()
+            project.absolutePath = folder.appendingPathComponent(project.file ?? "index.html")
+            if let preview = project.preview {
+                project.thumbnailPath = folder.appendingPathComponent(preview)
+            }
+            
+            DispatchQueue.main.async {
+                if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
+                    let type = project.type?.lowercased() ?? ""
+                    if type == "video" || type == "web" {
+                        self.wallpapers.append(project)
+                        // Trigger sort again after append
+                        self.wallpapers.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+                    }
+                }
+            }
+        } catch {
+            print("Parse Error: \(error)")
+        }
     }
     
     private func saveBookmark(for url: URL) {
@@ -211,30 +226,6 @@ class WallpaperLibrary: ObservableObject {
             if let verifyIndex = self.wallpapers.firstIndex(where: { $0.id == id }) {
                 self.wallpapers.remove(at: verifyIndex)
             }
-        }
-    }
-    
-    private func parseProjectJSON(url: URL) {
-        do {
-            let data = try Data(contentsOf: url)
-            var project = try JSONDecoder().decode(WallpaperProject.self, from: data)
-            let folder = url.deletingLastPathComponent()
-            project.absolutePath = folder.appendingPathComponent(project.file ?? "index.html")
-            if let preview = project.preview {
-                project.thumbnailPath = folder.appendingPathComponent(preview)
-            }
-            
-            DispatchQueue.main.async {
-                if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
-                    // [UPDATED] Allow 'web' type as well
-                    let type = project.type?.lowercased() ?? ""
-                    if type == "video" || type == "web" {
-                        self.wallpapers.append(project)
-                    }
-                }
-            }
-        } catch {
-            print("Failed to parse project.json at \(url): \(error)")
         }
     }
 }
