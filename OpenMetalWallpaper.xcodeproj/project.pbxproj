@@ -320,6 +320,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenMetalWallpaper/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 laobamac. All Rights Reserved.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "壁纸需要访问音频输入以实现可视化效果 (Wallpaper needs audio input for visualization)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -369,6 +370,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = OpenMetalWallpaper/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 laobamac. All Rights Reserved.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "壁纸需要访问音频输入以实现可视化效果 (Wallpaper needs audio input for visualization)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

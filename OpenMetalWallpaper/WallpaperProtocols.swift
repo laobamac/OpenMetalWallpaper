@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperProtocols.swift
- Description: Interfaces updated with Post-Processing support.
+ Description: Interfaces updated for Web Properties & Audio.
 */
 
 import Cocoa
@@ -21,6 +21,7 @@ protocol WallpaperPlayer: NSObjectProtocol {
     
     func setFrameLimit(_ fps: Int)
     
+    // Video Post-Processing (Web wallpaper handles this internally via properties usually, but keeping interface)
     func setPostProcessing(brightness: Float, contrast: Float, saturation: Float)
     
     func setBackgroundColor(_ color: NSColor)
@@ -28,6 +29,12 @@ protocol WallpaperPlayer: NSObjectProtocol {
     func updateScaling(mode: WallpaperScaleMode, scale: CGFloat, x: CGFloat, y: CGFloat, rotation: Int)
     
     func snapshot(completion: @escaping (NSImage?) -> Void)
+    
+    // Send generic properties (for Web wallpapers)
+    func updateProperties(_ properties: [String: Any])
+    
+    // Send audio data (for Web visualizers)
+    func sendAudioData(_ audioArray: [Float])
 }
 
 struct WallpaperOptions {
@@ -43,8 +50,10 @@ struct WallpaperOptions {
     var rotation: Int
     var fpsLimit: Int
     
-    // Post-processing options
-    var brightness: Float // -0.5 to 0.5 (default 0)
-    var contrast: Float   // 0.0 to 2.0 (default 1)
-    var saturation: Float // 0.0 to 2.0 (default 1)
+    var brightness: Float
+    var contrast: Float
+    var saturation: Float
+    
+    // Initial user properties from JSON
+    var userProperties: [String: Any] = [:]
 }

@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperLibrary.swift
- Description: Library with Fixed ID Logic & Removed Web Support.
+ Description: Library with Web Support & Property Parsing.
 */
 
 import Foundation
@@ -10,9 +10,74 @@ import Combine
 import SwiftUI
 import AVFoundation
 
+// MARK: - JSON Structures
+// 用于处理 JSON 中可能是 String 或 Number 的 value
+enum AnyCodableValue: Codable, Hashable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case null
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let x = try? container.decode(Double.self) { self = .number(x); return }
+        if let x = try? container.decode(String.self) { self = .string(x); return }
+        if let x = try? container.decode(Bool.self) { self = .bool(x); return }
+        if container.decodeNil() { self = .null; return }
+        throw DecodingError.typeMismatch(AnyCodableValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for AnyCodableValue"))
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let x): try container.encode(x)
+        case .number(let x): try container.encode(x)
+        case .bool(let x): try container.encode(x)
+        case .null: try container.encodeNil()
+        }
+    }
+    
+    var rawValue: Any {
+        switch self {
+        case .string(let s): return s
+        case .number(let n): return n
+        case .bool(let b): return b
+        case .null: return ""
+        }
+    }
+    
+    // 为了让 Picker 能使用 tag，先写一个明确的 Hashable 返回值
+    var hashableRawValue: AnyHashable {
+        switch self {
+        case .string(let s): return AnyHashable(s)
+        case .number(let n): return AnyHashable(n)
+        case .bool(let b): return AnyHashable(b)
+        case .null: return AnyHashable("")
+        }
+    }
+}
+
+// Hashable 协议
+struct PropertyOption: Codable, Hashable {
+    let label: String
+    let value: AnyCodableValue
+}
+
+struct WallpaperPropertyConfig: Codable {
+    let type: String
+    let text: String?
+    let value: AnyCodableValue?
+    let min: Double?
+    let max: Double?
+    let options: [PropertyOption]?
+    let order: Int?
+}
+
+struct WallpaperGeneral: Codable {
+    let properties: [String: WallpaperPropertyConfig]?
+}
+
 struct WallpaperProject: Codable, Identifiable {
-    // FIX: Use absolutePath as primary ID to avoid collision when filenames are identical (e.g. video.mp4)
-    // 修复：优先使用 absolutePath 作为 ID，避免因文件名相同（如都是 video.mp4）导致的 ID 冲突，从而解决列表显示不全的问题
     var id: String { absolutePath?.path ?? (file ?? UUID().uuidString) }
     
     let title: String
@@ -20,13 +85,13 @@ struct WallpaperProject: Codable, Identifiable {
     let type: String?
     let preview: String?
     let description: String?
+    let general: WallpaperGeneral? // [NEW]
     
-    // Runtime properties / 运行时属性
     var absolutePath: URL?
     var thumbnailPath: URL?
     
     private enum CodingKeys: String, CodingKey {
-        case title, file, type, preview, description
+        case title, file, type, preview, description, general
     }
 }
 
@@ -37,9 +102,7 @@ class WallpaperLibrary: ObservableObject {
     private let storagePathKey = "omw_library_storage_path"
     
     var storageURL: URL {
-        if let path = UserDefaults.standard.string(forKey: storagePathKey) {
-            return URL(fileURLWithPath: path)
-        }
+        if let path = UserDefaults.standard.string(forKey: storagePathKey) { return URL(fileURLWithPath: path) }
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let defaultPath = appSupport.appendingPathComponent("OpenMetalWallpaper").appendingPathComponent("Wallpapers")
         try? FileManager.default.createDirectory(at: defaultPath, withIntermediateDirectories: true)
@@ -51,8 +114,6 @@ class WallpaperLibrary: ObservableObject {
         importFromFolder(url: storageURL)
     }
     
-    // Changed to return Bool to indicate success/failure for UI feedback
-    // 改为返回 Bool 以便在 UI 上显示成功/失败提示
     @discardableResult
     func importVideoFile(url: URL, title: String) -> Bool {
         let safeTitle = title.isEmpty ? url.deletingPathExtension().lastPathComponent : title
@@ -68,8 +129,7 @@ class WallpaperLibrary: ObservableObject {
             if FileManager.default.fileExists(atPath: destVideoURL.path) { try FileManager.default.removeItem(at: destVideoURL) }
             try FileManager.default.copyItem(at: url, to: destVideoURL)
             generateThumbnail(videoURL: destVideoURL, destination: destThumbURL)
-            // Hardcode type to "video"
-            let newProject = WallpaperProject(title: safeTitle, file: "video.\(videoExt)", type: "video", preview: "preview.jpg", description: nil, absolutePath: nil, thumbnailPath: nil)
+            let newProject = WallpaperProject(title: safeTitle, file: "video.\(videoExt)", type: "video", preview: "preview.jpg", description: nil, general: nil, absolutePath: nil, thumbnailPath: nil)
             let jsonData = try JSONEncoder().encode(newProject)
             try jsonData.write(to: destJsonURL)
             importFromFolder(url: destinationFolder)
@@ -91,7 +151,7 @@ class WallpaperLibrary: ObservableObject {
             if let tiff = nsImage.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff), let jpeg = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
                 try jpeg.write(to: destination)
             }
-        } catch { print("Thumbnail error: \(error)") }
+        } catch { }
     }
     
     func setStoragePath(_ url: URL) {
@@ -116,12 +176,8 @@ class WallpaperLibrary: ObservableObject {
                 }
             }
         }
-        
         jsonFiles.sort { $0.path < $1.path }
-        
-        for fileURL in jsonFiles {
-            parseProjectJSON(url: fileURL)
-        }
+        for fileURL in jsonFiles { parseProjectJSON(url: fileURL) }
     }
     
     private func saveBookmark(for url: URL) {
@@ -130,7 +186,7 @@ class WallpaperLibrary: ObservableObject {
             var bookmarks = UserDefaults.standard.dictionary(forKey: bookmarksKey) as? [String: Data] ?? [:]
             bookmarks[url.absoluteString] = bookmarkData
             UserDefaults.standard.set(bookmarks, forKey: bookmarksKey)
-        } catch { print("Bookmark error: \(error)") }
+        } catch { }
     }
     
     private func restoreBookmarks() {
@@ -140,7 +196,7 @@ class WallpaperLibrary: ObservableObject {
             do {
                 let url = try URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale)
                 if url.startAccessingSecurityScopedResource() { importFromFolder(url: url) }
-            } catch { print("Resolve error: \(error)") }
+            } catch { }
         }
     }
     
@@ -149,12 +205,11 @@ class WallpaperLibrary: ObservableObject {
         let wallpaper = wallpapers[index]
         if deleteFile, let path = wallpaper.absolutePath {
             let folder = path.deletingLastPathComponent()
-            do { try FileManager.default.removeItem(at: folder); print("Physically deleted: \(folder.path)") } catch { print("Delete file failed: \(error)") }
+            do { try FileManager.default.removeItem(at: folder) } catch { }
         }
         DispatchQueue.main.async {
             if let verifyIndex = self.wallpapers.firstIndex(where: { $0.id == id }) {
                 self.wallpapers.remove(at: verifyIndex)
-                print("Removed from library list")
             }
         }
     }
@@ -164,22 +219,22 @@ class WallpaperLibrary: ObservableObject {
             let data = try Data(contentsOf: url)
             var project = try JSONDecoder().decode(WallpaperProject.self, from: data)
             let folder = url.deletingLastPathComponent()
-            project.absolutePath = folder.appendingPathComponent(project.file ?? "")
+            project.absolutePath = folder.appendingPathComponent(project.file ?? "index.html")
             if let preview = project.preview {
                 project.thumbnailPath = folder.appendingPathComponent(preview)
             }
             
             DispatchQueue.main.async {
-                // Prevent duplicate addition / 防止重复添加
                 if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
-                    // Removed Web support: Only allow video types
-                    // 移除 Web 支持：只允许 video 类型
+                    // [UPDATED] Allow 'web' type as well
                     let type = project.type?.lowercased() ?? ""
-                    if type == "video" {
+                    if type == "video" || type == "web" {
                         self.wallpapers.append(project)
                     }
                 }
             }
-        } catch { }
+        } catch {
+            print("Failed to parse project.json at \(url): \(error)")
+        }
     }
 }

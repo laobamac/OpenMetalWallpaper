@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: ContentView.swift
- Description: UI with Post-Processing Sliders.
+ Description: UI with Web Wallpaper & Dynamic Properties Support (Fixed Hashable).
 */
 
 import SwiftUI
@@ -220,15 +220,42 @@ struct ContentView: View {
         }
         return true
     }
+    
     private func syncSelection() {
         guard let monitor = selectedMonitor?.screen else { return }
         let controller = WallpaperEngine.shared.getController(for: monitor)
         if let currentId = controller.currentWallpaperID { if let wallpaper = library.wallpapers.first(where: { $0.id == currentId }) { self.selectedWallpaper = wallpaper } }
         self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused
     }
+    
     private func refreshMonitors() { monitors = Monitor.getAll(); if !monitors.contains(where: { $0.id == selectedMonitor?.id }) { selectedMonitor = monitors.first } }
-    private func applyWallpaper(_ wallpaper: WallpaperProject) { guard let monitor = selectedMonitor?.screen, let path = wallpaper.absolutePath else { return }; WallpaperEngine.shared.play(url: path, wallpaperId: wallpaper.id, screen: monitor, loadToMemory: loadToMemory); self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused }
+    
+    private func applyWallpaper(_ wallpaper: WallpaperProject) {
+        guard let monitor = selectedMonitor?.screen, let path = wallpaper.absolutePath else { return }
+        
+        var defaultProps: [String: Any] = [:]
+        if let props = wallpaper.general?.properties {
+            for (key, config) in props {
+                if let val = config.value {
+                    defaultProps[key] = val.rawValue
+                }
+            }
+        }
+        
+        WallpaperEngine.shared.play(
+            url: path,
+            wallpaperId: wallpaper.id,
+            wallpaperType: wallpaper.type?.lowercased() ?? "video",
+            screen: monitor,
+            loadToMemory: loadToMemory,
+            defaultProperties: defaultProps
+        )
+        
+        self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused
+    }
+    
     private func toggleGlobalPause() { WallpaperEngine.shared.togglePause() }
+    
     private func stopCurrentMonitor() { guard let monitor = selectedMonitor?.screen else { return }; WallpaperEngine.shared.stop(screen: monitor); self.selectedWallpaper = nil; self.isGlobalPaused = false }
 }
 
@@ -244,10 +271,11 @@ struct WallpaperInspector: View {
     @State private var manualOffsetY: CGFloat = 0.0
     @State private var rotation: Int = 0
     
-    // Post-processing states
     @State private var brightness: Float = 0.0
     @State private var contrast: Float = 1.0
     @State private var saturation: Float = 1.0
+    
+    @State private var webProps: [String: Any] = [:]
     
     var body: some View {
         ScrollView {
@@ -257,6 +285,30 @@ struct WallpaperInspector: View {
                 }
                 VStack(alignment: .leading) { Text(wallpaper.title).font(.title3).bold(); Text(monitor.name).font(.caption).foregroundColor(.accentColor) }
                 Divider()
+                
+                // MARK: - Web Properties (Fixed)
+                if let properties = wallpaper.general?.properties, !properties.isEmpty {
+                    Text(NSLocalizedString("properties_header", comment: "Properties")).font(.headline)
+                    
+                    let sortedKeys = properties.keys.sorted {
+                        (properties[$0]?.order ?? 0) < (properties[$1]?.order ?? 0)
+                    }
+                    
+                    ForEach(sortedKeys, id: \.self) { key in
+                        if let config = properties[key] {
+                            PropertyControl(key: key, config: config, value: Binding(
+                                get: { webProps[key] ?? config.value?.rawValue ?? "" },
+                                set: { newVal in
+                                    webProps[key] = newVal
+                                    updateWebProperty(key: key, value: newVal)
+                                }
+                            ))
+                        }
+                    }
+                    Divider()
+                }
+                
+                // MARK: - General Settings
                 Group {
                     HStack {
                         Text(NSLocalizedString("display_header", comment: "")).font(.headline)
@@ -346,6 +398,7 @@ struct WallpaperInspector: View {
             self.brightness = controller.brightness
             self.contrast = controller.contrast
             self.saturation = controller.saturation
+            self.webProps = controller.webProperties
         }
     }
     
@@ -358,6 +411,117 @@ struct WallpaperInspector: View {
         if self.scaleMode == .custom { controller.videoScale = self.manualScale; controller.xOffset = self.manualOffsetX; controller.yOffset = self.manualOffsetY }
         controller.rotation = self.rotation
         controller.setPostProcessing(brightness: self.brightness, contrast: self.contrast, saturation: self.saturation)
+    }
+    
+    private func updateWebProperty(key: String, value: Any) {
+        let controller = WallpaperEngine.shared.getController(for: monitor.screen)
+        guard controller.currentWallpaperID == wallpaper.id else { return }
+        controller.updateWebProperty(key: key, value: value)
+    }
+}
+
+// MARK: - Dynamic Property Control
+struct PropertyControl: View {
+    let key: String
+    let config: WallpaperPropertyConfig
+    @Binding var value: Any
+    
+    var label: String {
+        let raw = config.text ?? key
+        return raw.replacingOccurrences(of: "<br />", with: " ")
+                  .replacingOccurrences(of: "<br>", with: " ")
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            switch config.type {
+            case "slider":
+                let min = config.min ?? 0
+                let max = config.max ?? 100
+                let doubleBinding = Binding<Double>(
+                    get: { (value as? Double) ?? Double((value as? Int) ?? 0) },
+                    set: { value = $0 }
+                )
+                HStack {
+                    Text(label).font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Text(String(format: "%.0f", doubleBinding.wrappedValue)).monospacedDigit().font(.caption)
+                }
+                Slider(value: doubleBinding, in: min...max)
+                
+            case "bool":
+                let boolBinding = Binding<Bool>(
+                    get: { (value as? Bool) ?? false },
+                    set: { value = $0 }
+                )
+                Toggle(label, isOn: boolBinding)
+                
+            case "color":
+                let colorBinding = Binding<Color>(
+                    get: { parseColor(value as? String ?? "1 1 1") },
+                    set: { value = colorToString($0) }
+                )
+                HStack {
+                    Text(label).font(.body)
+                    Spacer()
+                    ColorPicker("", selection: colorBinding).labelsHidden()
+                }
+                
+            case "combo":
+                if let options = config.options, !options.isEmpty {
+                    VStack(alignment: .leading) {
+                        Text(label).font(.caption).foregroundColor(.secondary)
+                        
+                        // FIX: 使用 AnyHashable 解决 Type 'Any' cannot conform to 'Hashable'
+                        let hashableBinding = Binding<AnyHashable>(
+                            get: {
+                                if let s = value as? String { return AnyHashable(s) }
+                                if let d = value as? Double { return AnyHashable(d) }
+                                if let i = value as? Int { return AnyHashable(i) }
+                                if let b = value as? Bool { return AnyHashable(b) }
+                                return AnyHashable(value as? Int ?? 0) // Default fallback
+                            },
+                            set: { newValue in
+                                value = newValue.base
+                            }
+                        )
+                        
+                        Picker("", selection: hashableBinding) {
+                            ForEach(options, id: \.self) { opt in
+                                Text(opt.label).tag(opt.value.hashableRawValue)
+                            }
+                        }
+                    }
+                }
+                
+            case "text":
+                let textBinding = Binding<String>(
+                    get: { (value as? String) ?? "" },
+                    set: { value = $0 }
+                )
+                TextField(label, text: textBinding).textFieldStyle(.roundedBorder)
+                
+            default:
+                EmptyView()
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    func parseColor(_ str: String) -> Color {
+        let parts = str.split(separator: " ").compactMap { Double($0) }
+        if parts.count >= 3 {
+            return Color(red: parts[0], green: parts[1], blue: parts[2])
+        }
+        return .white
+    }
+    
+    func colorToString(_ color: Color) -> String {
+        let nsColor = NSColor(color)
+        if let rgb = nsColor.usingColorSpace(.sRGB) {
+            return "\(rgb.redComponent) \(rgb.greenComponent) \(rgb.blueComponent)"
+        }
+        return "1 1 1"
     }
 }
 

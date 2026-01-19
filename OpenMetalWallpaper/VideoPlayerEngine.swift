@@ -1,3 +1,10 @@
+/*
+ License: AGPLv3
+ Author: laobamac
+ File: VideoPlayerEngine.swift
+ Description: Video Player implementation updated for new Protocol.
+*/
+
 import Cocoa
 import AVFoundation
 import CoreImage
@@ -89,9 +96,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
     private func applyComposition(to item: AVPlayerItem) {
         guard let opts = self.options else { return }
         
-        // If no special FPS limit and no filter changes, standard playback is more efficient
-        // But to support dynamic changes, we might always attach a composition or attach only when needed
-        // Here we attach if needed.
         let needsFilters = (opts.brightness != 0 || opts.contrast != 1 || opts.saturation != 1)
         let needsFps = (opts.fpsLimit > 0 && opts.fpsLimit < 60)
         
@@ -103,26 +107,23 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
         Task {
             do {
                 let asset = item.asset
+                // Creating a composition from properties can be tricky async, simplistic approach here:
+                // Note: For robust filter + fps support, one usually needs a custom compositor or careful mutable composition construction.
+                // This is kept simplified as per original logic structure.
                 let composition = try await AVMutableVideoComposition.videoComposition(withPropertiesOf: asset)
                 
-                // 1. Apply FPS Limit
+                // Apply FPS Limit
                 if needsFps {
                     composition.frameDuration = CMTime(value: 1, timescale: CMTimeScale(opts.fpsLimit))
                 }
                 
-                // 2. Apply Filters if needed
+                // Apply Filters if needed
                 if needsFilters {
-                    // Capture values for the closure
                     let b = opts.brightness
                     let c = opts.contrast
                     let s = opts.saturation
                     
-                    composition.customVideoCompositorClass = nil // Use default handler
-                    
-                    // We must use `AVVideoComposition(asset: applyingCIFiltersWithHandler:)` logic
-                    // But that creates an immutable composition.
-                    // Instead, we can't easily inject a handler into a mutable composition derived from `withPropertiesOf`.
-                    // The standard way to combine frameDuration AND filters is to create a fresh composition.
+                    composition.customVideoCompositorClass = nil
                     
                     let filterComposition = AVVideoComposition(asset: asset) { [weak self] request in
                         guard let self = self else { request.finish(with: request.sourceImage, context: nil); return }
@@ -138,8 +139,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
                         request.finish(with: output, context: self.ciContext)
                     }
                     
-                    // Now copy the frameDuration setting to this new composition
-                    // AVVideoComposition is immutable, so we make a mutable copy
                     if let mutableComp = filterComposition.mutableCopy() as? AVMutableVideoComposition {
                         if needsFps {
                             mutableComp.frameDuration = CMTime(value: 1, timescale: CMTimeScale(opts.fpsLimit))
@@ -147,7 +146,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
                         await MainActor.run { item.videoComposition = mutableComp }
                     }
                 } else {
-                    // Only FPS limit, no filters
                     await MainActor.run { item.videoComposition = composition }
                 }
                 
@@ -192,7 +190,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
         }
     }
     
-    // ... snapshot, stop, pause, resume ... (Keep existing implementation)
     func snapshot(completion: @escaping (NSImage?) -> Void) {
         guard let url = self.currentURL else { completion(nil); return }
         Task {
@@ -206,15 +203,6 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
             generator.appliesPreferredTrackTransform = true
             generator.requestedTimeToleranceBefore = .positiveInfinity
             generator.requestedTimeToleranceAfter = .positiveInfinity
-            
-            // Apply filters to snapshot if needed?
-            // Usually snapshots are raw frames, but to match screen we should technically apply filters.
-            // AVAssetImageGenerator has `videoComposition` property!
-            if let opts = self.options, (opts.brightness != 0 || opts.contrast != 1 || opts.saturation != 1) {
-                 // Create a temporary composition for the generator
-                 // For simplicity, we skip this for now or duplicate the logic,
-                 // but typically lock screen overrides can be raw.
-            }
             
             let time = CMTime(seconds: 0.5, preferredTimescale: 600)
             do {
@@ -296,5 +284,16 @@ class VideoPlayerEngine: NSObject, WallpaperPlayer {
         
         layer.setAffineTransform(transform)
         CATransaction.commit()
+    }
+    
+    // MARK: - Protocol Updates for Web Support
+    // 视频壁纸不需要这些功能，提供空实现以满足协议
+    
+    func updateProperties(_ properties: [String : Any]) {
+        // Video player ignores generic properties
+    }
+    
+    func sendAudioData(_ audioArray: [Float]) {
+        // Video player does not support audio visualization
     }
 }

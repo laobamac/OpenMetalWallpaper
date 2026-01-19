@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperEngine.swift
- Description: Manager with FPS Limit & Post-Processing Support.
+ Description: Manager with FPS Limit & Post-Processing & Web Support.
 */
 
 import Cocoa
@@ -82,6 +82,16 @@ class ScreenController: NSObject {
     var contrast: Float = 1.0 { didSet { if !isBatchUpdating { self.updatePostProcessing(); saveSettings() } } }
     var saturation: Float = 1.0 { didSet { if !isBatchUpdating { self.updatePostProcessing(); saveSettings() } } }
     
+    // Web Properties
+    var webProperties: [String: Any] = [:] {
+        didSet {
+            if !isBatchUpdating {
+                self.currentPlayer?.updateProperties(webProperties)
+                saveSettings()
+            }
+        }
+    }
+    
     init(screen: NSScreen) {
         self.screen = screen
         super.init()
@@ -122,7 +132,6 @@ class ScreenController: NSObject {
         runOnMain { self.currentPlayer?.setFrameLimit(fps) }
     }
     
-    // Missing method fixed here
     func setPostProcessing(brightness: Float, contrast: Float, saturation: Float) {
         isBatchUpdating = true
         self.brightness = brightness
@@ -140,6 +149,11 @@ class ScreenController: NSObject {
         runOnMain { self.currentPlayer?.setPostProcessing(brightness: self.brightness, contrast: self.contrast, saturation: self.saturation) }
     }
     
+    func updateWebProperty(key: String, value: Any) {
+        webProperties[key] = value
+        // The didSet on webProperties will trigger player update and save
+    }
+    
     private func colorToString(_ color: NSColor) -> String {
         guard let rgb = color.usingColorSpace(.sRGB) else { return "0,0,0" }
         return "\(rgb.redComponent),\(rgb.greenComponent),\(rgb.blueComponent)"
@@ -153,6 +167,12 @@ class ScreenController: NSObject {
     
     private func saveSettings() {
         guard !isLoading, let wId = currentWallpaperID else { return }
+        
+        // Save Web Properties (Simple UserDefaults storage for now)
+        if !webProperties.isEmpty {
+             UserDefaults.standard.set(webProperties, forKey: "omw_props_\(wId)_\(screen.localizedName)")
+        }
+        
         let config = WallpaperConfig(
             volume: volume, playbackRate: playbackRate, scaleMode: scaleMode.rawValue, isLooping: isLooping,
             videoScale: videoScale, xOffset: xOffset, yOffset: yOffset,
@@ -170,6 +190,7 @@ class ScreenController: NSObject {
         self.scaleMode = .fill; self.videoScale = 1.0; self.xOffset = 0.0; self.yOffset = 0.0; self.rotation = 0
         self.backgroundColor = .black
         self.brightness = 0.0; self.contrast = 1.0; self.saturation = 1.0
+        self.webProperties = [:]
         
         self.isBatchUpdating = false
         
@@ -178,6 +199,7 @@ class ScreenController: NSObject {
             self.currentPlayer?.setBackgroundColor(.black)
             self.currentPlayer?.updateScaling(mode: .fill, scale: 1.0, x: 0, y: 0, rotation: 0)
             self.currentPlayer?.setPostProcessing(brightness: 0, contrast: 1, saturation: 1)
+            self.currentPlayer?.updateProperties([:])
             
             if !WallpaperEngine.shared.isGlobalPaused { self.currentPlayer?.setPlaybackRate(1.0) }
             else { self.currentPlayer?.pause() }
@@ -201,9 +223,15 @@ class ScreenController: NSObject {
             self.videoScale = 1.0; self.xOffset = 0; self.yOffset = 0; self.backgroundColor = .black; self.rotation = 0
             self.brightness = 0.0; self.contrast = 1.0; self.saturation = 1.0
         }
+        
+        if let props = UserDefaults.standard.dictionary(forKey: "omw_props_\(wallpaperId)_\(screen.localizedName)") {
+            self.webProperties = props
+        } else {
+            self.webProperties = [:]
+        }
     }
     
-    func play(url: URL, wallpaperId: String, loadToMemory: Bool) {
+    func play(url: URL, wallpaperId: String, wallpaperType: String, loadToMemory: Bool, defaultProperties: [String: Any]) {
         DispatchQueue.main.async {
             self.isLoading = true
             if self.window == nil { self.setupWindow() }
@@ -211,14 +239,22 @@ class ScreenController: NSObject {
             
             self.isBatchUpdating = true
             self.rotation = 0; self.scaleMode = .fill; self.volume = 0.5
+            // Merge defaults with saved settings (loadSettings called below will overwrite if saved exists)
+            self.webProperties = defaultProperties
             self.isBatchUpdating = false
             
             self.currentURL = url; self.currentWallpaperID = wallpaperId; self.isMemoryMode = loadToMemory; self.isPlaying = true
             
             WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: wallpaperId)
-            self.loadSettings(wallpaperId: wallpaperId)
+            self.loadSettings(wallpaperId: wallpaperId) // This will overwrite webProperties with user saved ones if they exist
             
-            let player = VideoPlayerEngine()
+            let player: WallpaperPlayer
+            if wallpaperType == "web" {
+                player = WebPlayerEngine()
+            } else {
+                player = VideoPlayerEngine()
+            }
+            
             player.attach(to: self.backgroundView)
             
             let fpsLimit = UserDefaults.standard.integer(forKey: "omw_fpsLimit")
@@ -228,7 +264,8 @@ class ScreenController: NSObject {
                 isMemoryMode: loadToMemory, isLooping: self.isLooping, volume: self.volume, playbackRate: self.playbackRate,
                 scaleMode: self.scaleMode, videoScale: self.videoScale, xOffset: self.xOffset, yOffset: self.yOffset,
                 backgroundColor: self.backgroundColor, rotation: self.rotation, fpsLimit: safeFps,
-                brightness: self.brightness, contrast: self.contrast, saturation: self.saturation
+                brightness: self.brightness, contrast: self.contrast, saturation: self.saturation,
+                userProperties: self.webProperties
             )
             
             player.load(url: url, options: options)
@@ -325,8 +362,8 @@ class WallpaperEngine: NSObject {
         return newController
     }
     
-    func play(url: URL, wallpaperId: String, screen: NSScreen, loadToMemory: Bool) {
-        getController(for: screen).play(url: url, wallpaperId: wallpaperId, loadToMemory: loadToMemory)
+    func play(url: URL, wallpaperId: String, wallpaperType: String, screen: NSScreen, loadToMemory: Bool, defaultProperties: [String: Any]) {
+        getController(for: screen).play(url: url, wallpaperId: wallpaperId, wallpaperType: wallpaperType, loadToMemory: loadToMemory, defaultProperties: defaultProperties)
         checkAppFocusState()
     }
     
@@ -337,20 +374,35 @@ class WallpaperEngine: NSObject {
     }
     
     func restoreSessions(library: WallpaperLibrary) {
-            self.refreshScreens()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                for (screenID, controller) in self.screenControllers {
-                    if let lastID = WallpaperPersistence.shared.loadActiveWallpaper(monitor: screenID) {
-                        if let wallpaper = library.wallpapers.first(where: { $0.id == lastID }), let path = wallpaper.absolutePath {
-                            let loadToMemory = UserDefaults.standard.bool(forKey: "omw_loadToMemory")
-                            controller.play(url: path, wallpaperId: lastID, loadToMemory: loadToMemory)
+        self.refreshScreens()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            for (screenID, controller) in self.screenControllers {
+                if let lastID = WallpaperPersistence.shared.loadActiveWallpaper(monitor: screenID) {
+                    if let wallpaper = library.wallpapers.first(where: { $0.id == lastID }), let path = wallpaper.absolutePath {
+                        let loadToMemory = UserDefaults.standard.bool(forKey: "omw_loadToMemory")
+                        
+                        // Extract Type
+                        let type = wallpaper.type?.lowercased() ?? "video"
+                        
+                        // Extract Default Properties
+                        var defaultProps: [String: Any] = [:]
+                        if let props = wallpaper.general?.properties {
+                            for (key, config) in props {
+                                if let val = config.value {
+                                    defaultProps[key] = val.rawValue
+                                }
+                            }
                         }
+                        
+                        // Call updated play signature
+                        controller.play(url: path, wallpaperId: lastID, wallpaperType: type, loadToMemory: loadToMemory, defaultProperties: defaultProps)
                     }
                 }
-                self.checkAppFocusState()
-                if !self.isGlobalPaused && !self.isSystemPaused { self.screenControllers.values.forEach { if $0.isPlaying { $0.resume() } } }
             }
+            self.checkAppFocusState()
+            if !self.isGlobalPaused && !self.isSystemPaused { self.screenControllers.values.forEach { if $0.isPlaying { $0.resume() } } }
         }
+    }
     
     func stop(screen: NSScreen) { getController(for: screen).stop() }
     
