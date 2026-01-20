@@ -1,6 +1,6 @@
 /*
  File: ContentView.swift
- Description: Main UI with Animation Fixes and Layout Adjustments.
+ Description: Main UI with Screensaver Alert & Context Menu.
 */
 
 import SwiftUI
@@ -27,6 +27,13 @@ struct ContentView: View {
     @State private var importStatusMessage = ""
     @State private var isProcessingImport = false
     
+    // Icon Hiding State
+    @State private var areIconsHidden: Bool = false
+    
+    // [New] Screensaver Success Alert
+    @State private var showScreensaverSetAlert: Bool = false
+    
+    // Settings Link
     @AppStorage("omw_loadToMemory") private var loadToMemory: Bool = false
     
     var filteredWallpapers: [WallpaperProject] {
@@ -52,17 +59,15 @@ struct ContentView: View {
                     .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Monitor Picker - [Fixed] Reduced Padding
+                    // Monitor Picker
                     MonitorPickerHeader(monitors: monitors, selectedMonitor: $selectedMonitor, refreshAction: refreshMonitors)
                         .padding(.horizontal)
-                        .padding(.vertical, 8) // Reduced vertical padding
+                        .padding(.vertical, 8)
                     
                     // Wallpaper Grid
                     ScrollView {
-                        // [Fixed] Added Animation for content changes
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 16)], spacing: 16) {
                             if filteredWallpapers.isEmpty {
-                                // Placeholder for empty state to allow smooth transition
                                 Text("")
                             } else {
                                 ForEach(filteredWallpapers) { wallpaper in
@@ -73,27 +78,39 @@ struct ContentView: View {
                                                 applyWallpaper(wallpaper)
                                             }
                                         }
-                                        // MARK: - Context Menu Modification
+                                        // MARK: - Context Menu
                                         .contextMenu {
-                                            // Show in Finder
-                                            Button(NSLocalizedString("show_in_finder")) {
+                                            Button(NSLocalizedString("show_in_finder", comment: "")) {
                                                 if let path = wallpaper.absolutePath { NSWorkspace.shared.activateFileViewerSelecting([path]) }
+                                            }
+                                            
+                                            // Set as Screensaver (Video Only)
+                                            if (wallpaper.type?.lowercased() ?? "video") == "video" {
+                                                Button(action: {
+                                                    if let path = wallpaper.absolutePath {
+                                                        WallpaperPersistence.shared.setScreensaverConfig(
+                                                            wallpaperId: wallpaper.id,
+                                                            filePath: path,
+                                                            loadToMemory: loadToMemory
+                                                        )
+                                                        // [New] Trigger Alert
+                                                        showScreensaverSetAlert = true
+                                                    }
+                                                }) {
+                                                    Label("设置为动态屏保", systemImage: "display.2")
+                                                }
                                             }
                                             
                                             Divider()
                                             
-                                            // Remove from List (Keep File)
-                                            Button(NSLocalizedString("remove_from_list")) {
+                                            Button(NSLocalizedString("remove_from_list", comment: "")) {
                                                 stopWallpaper(wallpaper.id)
-                                                // deleteFile: false
                                                 library.removeWallpaper(id: wallpaper.id, deleteFile: false)
                                                 if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
                                             }
                                             
-                                            // Delete File (Destructive)
-                                            Button(NSLocalizedString("delete_wallpaper_file"), role: .destructive) {
+                                            Button(NSLocalizedString("delete_wallpaper_file", comment: ""), role: .destructive) {
                                                 stopWallpaper(wallpaper.id)
-                                                // deleteFile: true
                                                 library.removeWallpaper(id: wallpaper.id, deleteFile: true)
                                                 if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
                                             }
@@ -107,10 +124,8 @@ struct ContentView: View {
                             }
                         }
                         .padding()
-                        // [Fixed] Explicit animation for category switching
                         .animation(.easeInOut(duration: 0.3), value: selectedCategory)
                     }
-                    // Handle Empty State overlay
                     .overlay {
                         if filteredWallpapers.isEmpty {
                             EmptyStateView(isImporting: $isImporting)
@@ -127,6 +142,14 @@ struct ContentView: View {
                         Button(action: toggleGlobalPause) { Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2) }
                             .buttonStyle(.borderless)
                         Button(action: stopCurrentMonitor) { Label(NSLocalizedString("stop_button", comment: ""), systemImage: "square.fill") }
+                        
+                        // Hide/Show Icons Button
+                        Button(action: toggleIcons) {
+                            Label(areIconsHidden ? NSLocalizedString("show_icons", comment: "Show Icons") : NSLocalizedString("hide_icons", comment: "Hide Icons"),
+                                  systemImage: areIconsHidden ? "eye.slash.fill" : "eye.fill")
+                        }
+                        .help(NSLocalizedString("hide_icons_help", comment: "Hide Desktop Icons"))
+                        
                         Spacer()
                         if isProcessingImport { ProgressView().controlSize(.small).padding(.trailing) }
                         Button(action: { showSettings = true }) { Label(NSLocalizedString("settings_button", comment: ""), systemImage: "gearshape") }
@@ -135,7 +158,6 @@ struct ContentView: View {
                     .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
                 }
             }
-            // [Fixed] Ignore safe area top to remove the gap
             .edgesIgnoringSafeArea(.top)
             .onDrop(of: [.fileURL], isTargeted: nil) { providers in handleDrop(providers: providers) }
             
@@ -158,26 +180,30 @@ struct ContentView: View {
         }
         .frame(minWidth: 900, minHeight: 600)
         
-        // Modals & Sheets
+        // [New] Screensaver Success Alert
+        .alert("设置成功", isPresented: $showScreensaverSetAlert) {
+            Button("好的", role: .cancel) { }
+        } message: {
+            Text("该视频已设置为动态屏保。\n请在“系统设置 -> 屏幕保护程序”中选择 OpenMetalScreensaver 即可预览。")
+        }
+        
+        // Existing Alerts
         .alert("Import Status", isPresented: $showImportAlert) { Button("OK", role: .cancel) { } } message: { Text(importStatusMessage) }
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            if let url = try? result.get().first {
-                guard url.startAccessingSecurityScopedResource() else { return }
-                isProcessingImport = true
-                DispatchQueue.global().async {
-                    library.importFromFolder(url: url)
-                    DispatchQueue.main.async { isProcessingImport = false; importStatusMessage = "Folder imported."; showImportAlert = true }
-                }
+        
+        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.folder], allowsMultipleSelection: true) { result in
+            if let urls = try? result.get() {
+                for url in urls { guard url.startAccessingSecurityScopedResource() else { continue } }
+                handleBatchImport(urls: urls)
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showNewWallpaperSheet) {
             VStack(spacing: 20) {
-                Text("New Video Wallpaper").font(.headline)
-                TextField("Name", text: $newWallpaperName).textFieldStyle(.roundedBorder).frame(width: 300)
+                Text(NSLocalizedString("new_video_wallpaper_title", comment: "")).font(.headline)
+                TextField(NSLocalizedString("wallpaper_name_placeholder", comment: ""), text: $newWallpaperName).textFieldStyle(.roundedBorder).frame(width: 300)
                 HStack {
-                    Button("Cancel") { showNewWallpaperSheet = false; pendingVideoURL = nil }.keyboardShortcut(.cancelAction)
-                    Button("Create") {
+                    Button(NSLocalizedString("cancel_button", comment: "")) { showNewWallpaperSheet = false; pendingVideoURL = nil }.keyboardShortcut(.cancelAction)
+                    Button(NSLocalizedString("create_button", comment: "")) {
                         if let url = pendingVideoURL {
                             let name = newWallpaperName
                             showNewWallpaperSheet = false; isProcessingImport = true
@@ -194,32 +220,60 @@ struct ContentView: View {
         .onChange(of: selectedMonitor) { syncSelection() }
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in syncSelection() }
         .onReceive(NotificationCenter.default.publisher(for: .globalPauseDidChange)) { _ in self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("omw_icons_hidden_changed"))) { _ in
+            self.areIconsHidden = WallpaperEngine.shared.areIconsHidden
+        }
     }
     
-    // Logic Helpers
+    // MARK: - Logic Helpers
+    
+    private func toggleIcons() {
+        WallpaperEngine.shared.toggleHideIcons()
+        self.areIconsHidden = WallpaperEngine.shared.areIconsHidden
+        NotificationCenter.default.post(name: Notification.Name("omw_icons_hidden_changed"), object: nil)
+    }
+
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (urlData, error) in
-            DispatchQueue.main.async {
+        var urlsToProcess: [URL] = []
+        let group = DispatchGroup()
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { (urlData, error) in
                 if let urlData = urlData as? Data, let url = URL(dataRepresentation: urlData, relativeTo: nil) {
-                    var isDir: ObjCBool = false
-                    if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
-                        if isDir.boolValue {
-                            self.isProcessingImport = true
-                            DispatchQueue.global().async {
-                                self.library.importFromFolder(url: url)
-                                DispatchQueue.main.async { self.isProcessingImport = false; self.importStatusMessage = "Imported successfully."; self.showImportAlert = true }
-                            }
-                        } else if ["mp4", "webm", "mov", "m4v"].contains(url.pathExtension.lowercased()) {
-                            self.pendingVideoURL = url
-                            self.newWallpaperName = url.deletingPathExtension().lastPathComponent
-                            self.showNewWallpaperSheet = true
-                        }
-                    }
+                    urlsToProcess.append(url)
+                }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) { self.handleBatchImport(urls: urlsToProcess) }
+        return true
+    }
+    
+    private func handleBatchImport(urls: [URL]) {
+        var newOnes: [URL] = []
+        for url in urls {
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
+                if isDir.boolValue {
+                    newOnes.append(url)
+                } else if ["mp4", "webm", "mov", "m4v"].contains(url.pathExtension.lowercased()) {
+                    self.pendingVideoURL = url
+                    self.newWallpaperName = url.deletingPathExtension().lastPathComponent
+                    self.showNewWallpaperSheet = true
                 }
             }
         }
-        return true
+        if !newOnes.isEmpty {
+            isProcessingImport = true
+            DispatchQueue.global().async {
+                for url in newOnes { self.library.importFromFolder(url: url) }
+                DispatchQueue.main.async {
+                    self.isProcessingImport = false
+                    self.importStatusMessage = NSLocalizedString("import_success_message", comment: "")
+                    self.showImportAlert = true
+                }
+            }
+        }
     }
     
     private func syncSelection() {

@@ -55,7 +55,7 @@ class WebPlayerEngine: NSObject, WallpaperPlayer, WKNavigationDelegate, WKScript
         config.preferences.javaScriptEnabled = true
         config.mediaTypesRequiringUserActionForPlayback = []
         
-        // MARK: - Smart Bridge (Suppress Errors)
+        // MARK: - Smart Bridge
         let bridgeScript = """
         window.wallpaperRegisterAudioListener = function(callback) {
             window.__audioListener = callback;

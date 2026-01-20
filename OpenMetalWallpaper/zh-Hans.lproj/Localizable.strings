@@ -39,6 +39,16 @@
 "clear_all_notice" = "这将删除所有壁纸的所有保存设置（音量、比例、旋转）。壁纸文件不会被删除。";
 "clear_button" = "清除";
 "maintenance" = "系统维护";
+"hide_icons" = "隐藏桌面图标";
+"show_icons" = "显示桌面图标";
+"hide_icons_help" = "通过调整壁纸层级遮挡桌面图标";
+"enable_screensaver_sync" = "同步到屏幕保护程序";
+"screensaver_hint" = "开启后，请在“系统设置 -> 屏幕保护程序”中选择 OpenMetalScreensaver。壁纸将自动同步。";
+"duplicate_found_title" = "发现重复壁纸";
+"duplicate_found_message" = "壁纸库中已存在 \"%@\"。是否替换？\n替换将删除原有文件。";
+"replace_button" = "替换";
+"skip_button" = "跳过";
+"import_success_message" = "导入完成";
 
 /* ContentView.swift */
 "installed_label" = "已安装";

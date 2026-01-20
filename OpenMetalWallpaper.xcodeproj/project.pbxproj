@@ -30,6 +30,7 @@
 		BB713B552F1A28CA00984369 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		BB713B572F1A28D000984369 /* Combine.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Combine.framework; path = System/Library/Frameworks/Combine.framework; sourceTree = SDKROOT; };
 		BB713BA22F1A474B00984369 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		BBA4E7EC2F1FB7F1002EB5F5 /* OpenMetalScreensaver.saver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMetalScreensaver.saver; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,6 +52,11 @@
 			path = OpenMetalWallpaper;
 			sourceTree = "<group>";
 		};
+		BBA4E7ED2F1FB7F1002EB5F5 /* OpenMetalScreensaver */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = OpenMetalScreensaver;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +70,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BBA4E7E92F1FB7F1002EB5F5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -71,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				BB713B2A2F1A22B600984369 /* OpenMetalWallpaper */,
+				BBA4E7ED2F1FB7F1002EB5F5 /* OpenMetalScreensaver */,
 				BB713B502F1A28BB00984369 /* Frameworks */,
 				BB713B292F1A22B600984369 /* Products */,
 			);
@@ -79,6 +93,7 @@
 		BB713B292F1A22B600984369 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				BBA4E7EC2F1FB7F1002EB5F5 /* OpenMetalScreensaver.saver */,
 				BB713B282F1A22B600984369 /* OpenMetalWallpaper.app */,
 			);
 			name = Products;
@@ -95,6 +110,16 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		BBA4E7E72F1FB7F1002EB5F5 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		BB713B272F1A22B600984369 /* OpenMetalWallpaper */ = {
@@ -120,6 +145,29 @@
 			productReference = BB713B282F1A22B600984369 /* OpenMetalWallpaper.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BBA4E7EB2F1FB7F1002EB5F5 /* OpenMetalScreensaver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BBA4E7F22F1FB7F1002EB5F5 /* Build configuration list for PBXNativeTarget "OpenMetalScreensaver" */;
+			buildPhases = (
+				BBA4E7E72F1FB7F1002EB5F5 /* Headers */,
+				BBA4E7E82F1FB7F1002EB5F5 /* Sources */,
+				BBA4E7E92F1FB7F1002EB5F5 /* Frameworks */,
+				BBA4E7EA2F1FB7F1002EB5F5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BBA4E7ED2F1FB7F1002EB5F5 /* OpenMetalScreensaver */,
+			);
+			name = OpenMetalScreensaver;
+			packageProductDependencies = (
+			);
+			productName = OpenMetalScreensaver;
+			productReference = BBA4E7EC2F1FB7F1002EB5F5 /* OpenMetalScreensaver.saver */;
+			productType = "com.apple.product-type.bundle";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -131,6 +179,10 @@
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					BB713B272F1A22B600984369 = {
+						CreatedOnToolsVersion = 26.1;
+						LastSwiftMigration = 2610;
+					};
+					BBA4E7EB2F1FB7F1002EB5F5 = {
 						CreatedOnToolsVersion = 26.1;
 						LastSwiftMigration = 2610;
 					};
@@ -152,6 +204,7 @@
 			projectRoot = "";
 			targets = (
 				BB713B272F1A22B600984369 /* OpenMetalWallpaper */,
+				BBA4E7EB2F1FB7F1002EB5F5 /* OpenMetalScreensaver */,
 			);
 		};
 /* End PBXProject section */
@@ -164,10 +217,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BBA4E7EA2F1FB7F1002EB5F5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		BB713B242F1A22B600984369 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBA4E7E82F1FB7F1002EB5F5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -305,9 +372,11 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_ENTITLEMENTS = OpenMetalWallpaper/OpenMetalWallpaper.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 74U2CH74U6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
@@ -355,9 +424,11 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_ENTITLEMENTS = OpenMetalWallpaper/OpenMetalWallpaper.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 74U2CH74U6;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_PREVIEWS = YES;
@@ -396,6 +467,57 @@
 			};
 			name = Release;
 		};
+		BBA4E7F32F1FB7F1002EB5F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 74U2CH74U6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).OpenMetalScreensaverView";
+				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.laobamac.OpenMetalWallpaper.screensaver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				WRAPPER_EXTENSION = saver;
+			};
+			name = Debug;
+		};
+		BBA4E7F42F1FB7F1002EB5F5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 74U2CH74U6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).OpenMetalScreensaverView";
+				INSTALL_PATH = "$(HOME)/Library/Screen Savers";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = cn.laobamac.OpenMetalWallpaper.screensaver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				WRAPPER_EXTENSION = saver;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -413,6 +535,15 @@
 			buildConfigurations = (
 				BB713B342F1A22B700984369 /* Debug */,
 				BB713B352F1A22B700984369 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BBA4E7F22F1FB7F1002EB5F5 /* Build configuration list for PBXNativeTarget "OpenMetalScreensaver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBA4E7F32F1FB7F1002EB5F5 /* Debug */,
+				BBA4E7F42F1FB7F1002EB5F5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

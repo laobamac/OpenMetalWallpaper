@@ -39,6 +39,16 @@
 "clear_all_notice" = "This will delete all user data including wallpapers, settings and preferences. This action cannot be undone.(Wallpaper files won't be deleted.)";
 "clear_button" = "Clear";
 "maintenance" = "Maintenance";
+"hide_icons" = "Hide Desktop Icons";
+"show_icons" = "Show Desktop Icons";
+"hide_icons_help" = "Hide desktop icons by adjusting the wallpaper layer hierarchy";
+"enable_screensaver_sync" = "Sync to Screensaver";
+"screensaver_hint" = "After enabling, go to 'System Settings > Screensaver' and select OpenMetalScreensaver. Wallpapers will sync automatically.";
+"duplicate_found_title" = "Duplicate Wallpaper Found";
+"duplicate_found_message" = "\"%@\" already exists in your library. Replace it?\nReplacing will delete the original file.";
+"replace_button" = "Replace";
+"skip_button" = "Skip";
+"import_success_message" = "Import Complete";
 
 /* ContentView.swift */
 "installed_label" = "Installed";

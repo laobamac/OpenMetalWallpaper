@@ -74,7 +74,6 @@ struct SettingsView: View {
                         .pickerStyle(.menu)
                         .frame(maxWidth: 200)
                         .onChange(of: audioDeviceID) {
-                            // Notify Player to Restart Audio
                             NotificationCenter.default.post(name: Notification.Name("omw_audioDeviceChanged"), object: nil)
                         }
                     }

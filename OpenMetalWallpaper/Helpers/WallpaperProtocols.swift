@@ -2,7 +2,7 @@
  License: AGPLv3
  Author: laobamac
  File: WallpaperProtocols.swift
- Description: Interfaces updated for Web Properties & Audio.
+ Description: Interfaces updated for Web Properties & Audio & Interaction.
 */
 
 import Cocoa
@@ -53,6 +53,9 @@ struct WallpaperOptions {
     var brightness: Float
     var contrast: Float
     var saturation: Float
+    
+    // Web Interaction
+    var isInteractive: Bool
     
     // Initial user properties from JSON
     var userProperties: [String: Any] = [:]

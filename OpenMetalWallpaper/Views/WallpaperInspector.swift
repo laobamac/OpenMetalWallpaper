@@ -1,6 +1,6 @@
 /*
  File: WallpaperInspector.swift
- Description: Inspector with Image Zoom Preview.
+ Description: Inspector with Image Zoom Preview and Interactive Mode Logic.
 */
 
 import SwiftUI
@@ -27,14 +27,18 @@ struct WallpaperInspector: View {
     // Dynamic Properties
     @State private var webProps: [String: Any] = [:]
     
-    // [New] Preview Zoom State
+    // Preview Zoom State
     @State private var showPreviewZoom: Bool = false
+    
+    // Interaction Logic State
+    @State private var isInteractive: Bool = false
+    @State private var showIconHiddenAlert: Bool = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 
-                // 1. Header Info with Zoomable Image
+                // Header Info with Zoomable Image
                 HStack(alignment: .top, spacing: 16) {
                     if let thumbPath = wallpaper.thumbnailPath, let nsImage = NSImage(contentsOf: thumbPath) {
                         Image(nsImage: nsImage)
@@ -72,7 +76,35 @@ struct WallpaperInspector: View {
                 
                 Divider()
                 
-                // 2. Web Properties
+                // 1.5 Interactive Toggle (Web/Scene Only)
+                if wallpaper.type?.lowercased() == "web" || wallpaper.type?.lowercased() == "scene" {
+                    GroupBox {
+                        // 使用 Binding 的自定义 set 逻辑来拦截点击
+                        Toggle("允许鼠标互动 (Allow Interaction)", isOn: Binding(
+                            get: { isInteractive },
+                            set: { newValue in
+                                if newValue {
+                                    // 用户想要开启互动
+                                    if WallpaperEngine.shared.areIconsHidden {
+                                        // 图标已经隐藏，直接开启
+                                        isInteractive = true
+                                        syncToEngine()
+                                    } else {
+                                        // 图标未隐藏，弹出提示，暂不开启
+                                        showIconHiddenAlert = true
+                                    }
+                                } else {
+                                    // 用户关闭互动，直接关闭
+                                    isInteractive = false
+                                    syncToEngine()
+                                }
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                    }
+                }
+                
+                // Web Properties
                 if let properties = wallpaper.general?.properties, !properties.isEmpty {
                     Text("壁纸设置 (Properties)").font(.headline)
                     LazyVStack(alignment: .leading, spacing: 16) {
@@ -92,7 +124,7 @@ struct WallpaperInspector: View {
                     Divider()
                 }
                 
-                // 3. Post Processing
+                // Post Processing
                 GroupBox(label: Text("画面调节 (Post Processing)").bold()) {
                     VStack(spacing: 12) {
                         LabeledSlider(label: "亮度", value: $brightness, range: -0.5...0.5, format: "%.2f")
@@ -104,7 +136,7 @@ struct WallpaperInspector: View {
                 .onChange(of: contrast) { syncToEngine() }
                 .onChange(of: saturation) { syncToEngine() }
                 
-                // 4. Transform
+                // Transform
                 GroupBox(label: Text("位置与变换 (Transform)").bold()) {
                     VStack(alignment: .leading, spacing: 12) {
                         Picker("模式", selection: $scaleMode) {
@@ -151,7 +183,28 @@ struct WallpaperInspector: View {
         .onAppear(perform: loadFromEngine)
         .onChange(of: monitor) { loadFromEngine() }
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in loadFromEngine() }
-        // [New] Full Screen Image Overlay
+        
+        // Icon Hidden Alert
+        .alert(isPresented: $showIconHiddenAlert) {
+            Alert(
+                title: Text("需要隐藏桌面图标"),
+                message: Text("启用交互模式时，必须隐藏桌面图标以防止冲突。\n(点击“隐藏并开启”将自动隐藏图标)"),
+                primaryButton: .default(Text("隐藏并开启"), action: {
+                    // 隐藏图标 (全局)
+                    if !WallpaperEngine.shared.areIconsHidden {
+                        WallpaperEngine.shared.toggleHideIcons()
+                        // 强制刷新 ContentView 的按钮状态 (通过 Notification)
+                        NotificationCenter.default.post(name: Notification.Name("omw_icons_hidden_changed"), object: nil)
+                    }
+                    // 开启互动 (当前壁纸)
+                    isInteractive = true
+                    syncToEngine()
+                }),
+                secondaryButton: .cancel(Text("取消"))
+            )
+        }
+        
+        // Full Screen Image Overlay
         .overlay {
             if showPreviewZoom, let thumbPath = wallpaper.thumbnailPath, let nsImage = NSImage(contentsOf: thumbPath) {
                 ZStack {
@@ -187,7 +240,7 @@ struct WallpaperInspector: View {
         .animation(.easeInOut, value: showPreviewZoom)
     }
     
-    // MARK: - Logic Helpers (Keep unchanged)
+    // MARK: - Logic Helpers
     private func loadFromEngine() {
         let controller = WallpaperEngine.shared.getController(for: monitor.screen)
         if controller.currentWallpaperID == wallpaper.id {
@@ -196,6 +249,10 @@ struct WallpaperInspector: View {
             self.manualOffsetX = controller.xOffset; self.manualOffsetY = controller.yOffset
             self.rotation = controller.rotation
             self.brightness = controller.brightness; self.contrast = controller.contrast; self.saturation = controller.saturation
+            
+            // [New] Load Interaction State
+            self.isInteractive = controller.isInteractive
+            
             self.webProps = controller.webProperties
             if self.webProps.isEmpty, let configs = wallpaper.general?.properties {
                 for (k, v) in configs { if let val = v.value { self.webProps[k] = val.rawValue } }
@@ -212,6 +269,9 @@ struct WallpaperInspector: View {
         if scaleMode == .custom { controller.videoScale = manualScale; controller.xOffset = manualOffsetX; controller.yOffset = manualOffsetY }
         controller.rotation = rotation
         controller.setPostProcessing(brightness: brightness, contrast: contrast, saturation: saturation)
+        
+        // Sync Interaction State
+        controller.isInteractive = isInteractive
     }
     
     private func updateWebProperty(key: String, value: Any) {

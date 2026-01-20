@@ -92,6 +92,15 @@ class ScreenController: NSObject {
         }
     }
     
+    var isInteractive: Bool = false {
+        didSet {
+            if !isBatchUpdating {
+                self.updateWindowInteraction()
+                saveSettings()
+            }
+        }
+    }
+    
     init(screen: NSScreen) {
         self.screen = screen
         super.init()
@@ -105,22 +114,53 @@ class ScreenController: NSObject {
     private func setupWindow() {
         let screenRect = screen.frame
         let newWindow = WallpaperWindow(contentRect: screenRect, styleMask: [.borderless], backing: .buffered, defer: false)
-        
+            
+        // 初始层级：图标之下
         newWindow.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopIconWindow)) - 1)
         newWindow.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         newWindow.backgroundColor = .black
         newWindow.hasShadow = false
         newWindow.isOpaque = true
-        newWindow.ignoresMouseEvents = true
-        
+        newWindow.ignoresMouseEvents = true // 默认忽略鼠标
+            
         backgroundView = NSView(frame: NSRect(origin: .zero, size: screenRect.size))
         backgroundView.wantsLayer = true
         backgroundView.layer = CALayer()
         backgroundView.layer?.backgroundColor = NSColor.black.cgColor
         newWindow.contentView = backgroundView
-        
+            
         self.window = newWindow
         self.window?.orderFront(nil)
+            
+        // Apply current global icon setting
+        updateIconVisibility()
+    }
+        
+    func updateWindowInteraction() {
+        runOnMain {
+            // 如果允许互动 (isInteractive)，必须接收鼠标事件。
+            // 如果隐藏了图标 (areIconsHidden)，也必须接收鼠标事件(作为遮挡层)，防止点击穿透到桌面的图标。
+            let shouldAcceptEvents = self.isInteractive || WallpaperEngine.shared.areIconsHidden
+                        
+            // ignoresMouseEvents = true 表示穿透；false 表示拦截
+            self.window?.ignoresMouseEvents = !shouldAcceptEvents
+        }
+        }
+        
+    func updateIconVisibility() {
+        runOnMain {
+            let hideIcons = WallpaperEngine.shared.areIconsHidden
+            if hideIcons {
+                // 覆盖图标：层级设为图标之上
+                self.window?.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
+            } else {
+                // 显示图标：层级设为图标之下
+                self.window?.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopIconWindow)) - 1)
+            }
+                
+            // 隐藏图标意味着需要拦截鼠标防止穿透
+            self.updateWindowInteraction()
+        }
     }
     
     private func updatePlayerScaling() {
@@ -174,13 +214,14 @@ class ScreenController: NSObject {
         }
         
         let config = WallpaperConfig(
-            volume: volume, playbackRate: playbackRate, scaleMode: scaleMode.rawValue, isLooping: isLooping,
-            videoScale: videoScale, xOffset: xOffset, yOffset: yOffset,
-            backgroundColor: colorToString(backgroundColor), rotation: rotation,
-            brightness: brightness, contrast: contrast, saturation: saturation
-        )
-        WallpaperPersistence.shared.save(config: config, monitor: screen.localizedName, wallpaperId: wId)
-    }
+                volume: volume, playbackRate: playbackRate, scaleMode: scaleMode.rawValue, isLooping: isLooping,
+                videoScale: videoScale, xOffset: xOffset, yOffset: yOffset,
+                backgroundColor: colorToString(backgroundColor), rotation: rotation,
+                brightness: brightness, contrast: contrast, saturation: saturation,
+                isInteractive: isInteractive // Save new prop
+            )
+            WallpaperPersistence.shared.save(config: config, monitor: screen.localizedName, wallpaperId: wId)
+        }
     
     func resetSettings() {
         self.isLoading = true
@@ -218,10 +259,12 @@ class ScreenController: NSObject {
             self.videoScale = config.videoScale; self.xOffset = config.xOffset; self.yOffset = config.yOffset
             self.backgroundColor = stringToColor(config.backgroundColor ?? "0,0,0"); self.rotation = config.rotation
             self.brightness = config.brightness; self.contrast = config.contrast; self.saturation = config.saturation
+            self.isInteractive = config.isInteractive
         } else {
             self.volume = 0.5; self.playbackRate = 1.0; self.scaleMode = .fill; self.isLooping = true
             self.videoScale = 1.0; self.xOffset = 0; self.yOffset = 0; self.backgroundColor = .black; self.rotation = 0
             self.brightness = 0.0; self.contrast = 1.0; self.saturation = 1.0
+            self.isInteractive = false
         }
         
         if let props = UserDefaults.standard.dictionary(forKey: "omw_props_\(wallpaperId)_\(screen.localizedName)") {
@@ -245,7 +288,7 @@ class ScreenController: NSObject {
             
             self.currentURL = url; self.currentWallpaperID = wallpaperId; self.isMemoryMode = loadToMemory; self.isPlaying = true
             
-            WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: wallpaperId)
+            WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: wallpaperId, filePath: url)
             self.loadSettings(wallpaperId: wallpaperId) // This will overwrite webProperties with user saved ones if they exist
             
             let player: WallpaperPlayer
@@ -265,11 +308,15 @@ class ScreenController: NSObject {
                 scaleMode: self.scaleMode, videoScale: self.videoScale, xOffset: self.xOffset, yOffset: self.yOffset,
                 backgroundColor: self.backgroundColor, rotation: self.rotation, fpsLimit: safeFps,
                 brightness: self.brightness, contrast: self.contrast, saturation: self.saturation,
+                isInteractive: self.isInteractive,
                 userProperties: self.webProperties
             )
             
             player.load(url: url, options: options)
             self.currentPlayer = player
+            
+            self.updateWindowInteraction() // Apply interaction state
+            self.updateIconVisibility() // Ensure level is correct
             
             if WallpaperEngine.shared.isGlobalPaused { player.pause() }
             
@@ -309,7 +356,7 @@ class ScreenController: NSObject {
     
     private func _stop(keepWindow: Bool) {
         self.isPlaying = false
-        if !keepWindow { WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: nil) }
+        if !keepWindow { WallpaperPersistence.shared.saveActiveWallpaper(monitor: self.screen.localizedName, wallpaperId: nil, filePath: nil) }
         currentPlayer?.stop(); currentPlayer = nil
         if !keepWindow { window?.orderOut(nil); window = nil }
         NotificationCenter.default.post(name: .wallpaperDidChange, object: nil)
@@ -326,6 +373,7 @@ class WallpaperEngine: NSObject {
     private(set) var isGlobalPaused: Bool = false
     private var isSystemPaused: Bool = false
     var pauseOnAppFocus: Bool = UserDefaults.standard.bool(forKey: "omw_pauseOnAppFocus")
+    private(set) var areIconsHidden: Bool = false
     
     var activeScreens: [String: String] {
         var status: [String: String] = [:]
@@ -371,6 +419,11 @@ class WallpaperEngine: NSObject {
         DispatchQueue.main.async {
             for (_, c) in self.screenControllers { if c.currentWallpaperID == id { c.stop() } }
         }
+    }
+    
+    func toggleHideIcons() {
+        areIconsHidden.toggle()
+        screenControllers.values.forEach { $0.updateIconVisibility() }
     }
     
     func restoreSessions(library: WallpaperLibrary) {
