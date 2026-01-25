@@ -1,0 +1,112 @@
+/* UpdateChecker.swift */
+"update_check_failed" = "检查更新失败，请检查网络连接。";
+"parse_version_failed" = "无法解析版本信息。";
+"current_latest_version" = "当前已是最新版本";
+"current_version_latest" = "当前版本: %@\n最新发布: %@";
+"ok_button" = "好";
+"new_version_found" = "发现新版本: %@";
+"current_version_update" = "当前版本: v%@\n\n更新内容:\n%@";
+"download_button" = "前往下载";
+"later_button" = "以后再说";
+"update_check_error" = "更新检查错误";
+"confirm_button" = "确定";
+/* SettingsView.swift */
+"preferences_title" = "偏好设置";
+"wallpaper_library_header" = "壁纸库";
+"default_storage_location" = "默认存储位置";
+"change_button" = "更改...";
+"performance_header" = "性能";
+"preload_video_memory" = "预加载视频到内存";
+"preload_help" = "减少磁盘IO，但增加内存占用";
+"preload_description" = "启用此选项可消除循环播放时的卡顿。";
+"frame_rate_limit" = "帧率限制";
+"automation_header" = "自动化";
+"pause_on_app_focus" = "其他应用全屏/活动时暂停";
+"override_lock_screen" = "覆盖锁屏壁纸";
+"override_lock_screen_help" = "自动将视频/网页的一帧设置为系统桌面壁纸，使锁屏界面与动态壁纸保持一致。";
+"updates_header" = "更新";
+"auto_check_updates" = "启动时自动检查更新";
+"current_version_text" = "当前版本: %@";
+"check_updates_button" = "检查更新";
+"about_header" = "关于";
+"license_text" = "AGPLv3 License";
+"done_button" = "完成";
+"choose_storage_folder_message" = "选择一个新的文件夹来存储导入的壁纸";
+"clear_user_data" = "清理用户数据";
+"reset_property_and_mem" = "重置所有属性和内存数据";
+"clear_all" = "全部清除";
+"confirm_clear_data" = "确认清除数据";
+"clear_all_notice" = "这将删除所有壁纸的所有保存设置（音量、比例、旋转）。壁纸文件不会被删除。";
+"clear_button" = "清除";
+"maintenance" = "系统维护";
+"hide_icons" = "隐藏桌面图标";
+"show_icons" = "显示桌面图标";
+"hide_icons_help" = "通过调整壁纸层级遮挡桌面图标";
+"enable_screensaver_sync" = "同步到屏幕保护程序";
+"screensaver_hint" = "开启后，请在“系统设置 -> 屏幕保护程序”中选择 OpenMetalScreensaver。壁纸将自动同步。";
+"duplicate_found_title" = "发现重复壁纸";
+"duplicate_found_message" = "壁纸库中已存在 \"%@\"。是否替换？\n替换将删除原有文件。";
+"replace_button" = "替换";
+"skip_button" = "跳过";
+"import_success_message" = "导入完成";
+
+/* ContentView.swift */
+"installed_label" = "已安装";
+"workshop_label" = "创意工坊";
+"add_button" = "添加";
+"pause_help" = "暂停播放";
+"play_help" = "继续播放";
+"stop_button" = "停止当前屏幕";
+"settings_button" = "设置";
+"select_wallpaper_message" = "选择一张壁纸以编辑属性";
+"new_video_wallpaper_title" = "新建视频壁纸";
+"wallpaper_name_placeholder" = "壁纸名称";
+"cancel_button" = "取消";
+"create_button" = "创建";
+"show_in_finder" = "在 Finder 中显示";
+"remove_from_list" = "从列表移除";
+"delete_wallpaper_file" = "删除壁纸文件 (物理删除)";
+"no_playing_wallpaper" = "没有正在播放的壁纸";
+"pause_all" = "暂停所有";
+"resume_all" = "继续所有";
+"open_main_window" = "打开主界面...";
+"check_updates_menu" = "检查更新...";
+"quit_app" = "退出 OpenMetalWallpaper";
+/* WallpaperInspector */
+"display_header" = "显示";
+"restore_defaults_button" = "恢复默认";
+"mode_label" = "模式";
+"scale_label" = "缩放";
+"x_axis_label" = "X 轴";
+"y_axis_label" = "Y 轴";
+"reset_custom_params_button" = "重置自定义参数";
+"web_wallpaper_auto_adapt" = "Web 壁纸自动适应屏幕";
+"rotation_label" = "旋转";
+"background_color_web_label" = "背景颜色 (Web)";
+"playback_header" = "播放";
+"volume_label" = "音量";
+"rate_label" = "速率";
+"loop_playback" = "循环播放";
+"current_display" = "当前配置:";
+"fill_mode" = "填充 (Cover)";
+"fit_mode" = "适应 (Fit)";
+"stretch_mode" = "拉伸 (Stretch)";
+"custom_mode" = "自定义 (Custom)";
+"post_processing_header" = "后处理";
+"brightness_label" = "亮度";
+"contrast_label" = "对比度";
+"saturation_label" = "饱和度";
+"aa_notice" = "注意: 抗锯齿仅适用于 3D 场景壁纸，对视频壁纸无效。";
+
+/* Sidebar */
+"library_header" = "壁纸库";
+"discover_header" = "发现";
+/* EmptyStateView */
+"no_wallpapers_found" = "没有找到壁纸";
+"drag_drop_hint" = "拖放视频文件或文件夹到此处";
+"import_now_button" = "立即导入";
+/* WallpaperCard */
+"unknown_source" = "未知来源";
+
+/* LaunchManager */
+"launch_at_login" = "开机自动启动";

@@ -1,0 +1,114 @@
+/* UpdateChecker.swift */
+"update_check_failed" = "Failed to check for updates. Please check your network connection.";
+"parse_version_failed" = "Unable to parse version information.";
+"current_latest_version" = "You are using the latest version";
+"current_version_latest" = "Current version: %@\nLatest release: %@";
+"ok_button" = "OK";
+"new_version_found" = "New version available: %@";
+"current_version_update" = "Current version: v%@\n\nUpdate notes:\n%@";
+"download_button" = "Download";
+"later_button" = "Later";
+"update_check_error" = "Update Check Error";
+"confirm_button" = "Confirm";
+/* SettingsView.swift */
+"preferences_title" = "Preferences";
+"wallpaper_library_header" = "Wallpaper Library";
+"default_storage_location" = "Default Storage Location";
+"change_button" = "Change...";
+"performance_header" = "Performance";
+"preload_video_memory" = "Preload videos to memory";
+"preload_help" = "Reduces disk I/O but increases memory usage";
+"preload_description" = "Enabling this option eliminates stuttering during loop playback.";
+"frame_rate_limit" = "Frame Rate Limit";
+"automation_header" = "Automation";
+"pause_on_app_focus" = "Pause when other apps are fullscreen/active";
+"override_lock_screen" = "Override Lock Screen";
+"override_lock_screen_help" = "Automatically sets the system wallpaper to a frame from the live wallpaper to match the lock screen.";
+"updates_header" = "Updates";
+"auto_check_updates" = "Automatically check for updates on startup";
+"current_version_text" = "Current version: %@";
+"check_updates_button" = "Check for Updates";
+"about_header" = "About";
+"license_text" = "AGPLv3 License";
+"done_button" = "Done";
+"choose_storage_folder_message" = "Select a new folder to store imported wallpapers";
+"clear_user_data" = "Clear User Data";
+"reset_property_and_mem" = "Reset all property and memory data";
+"clear_all" = "Clear All";
+"confirm_clear_data" = "Confirm Clear Data";
+"clear_all_notice" = "This will delete all user data including wallpapers, settings and preferences. This action cannot be undone.(Wallpaper files won't be deleted.)";
+"clear_button" = "Clear";
+"maintenance" = "Maintenance";
+"hide_icons" = "Hide Desktop Icons";
+"show_icons" = "Show Desktop Icons";
+"hide_icons_help" = "Hide desktop icons by adjusting the wallpaper layer hierarchy";
+"enable_screensaver_sync" = "Sync to Screensaver";
+"screensaver_hint" = "After enabling, go to 'System Settings > Screensaver' and select OpenMetalScreensaver. Wallpapers will sync automatically.";
+"duplicate_found_title" = "Duplicate Wallpaper Found";
+"duplicate_found_message" = "\"%@\" already exists in your library. Replace it?\nReplacing will delete the original file.";
+"replace_button" = "Replace";
+"skip_button" = "Skip";
+"import_success_message" = "Import Complete";
+
+/* ContentView.swift */
+"installed_label" = "Installed";
+"workshop_label" = "Workshop";
+"add_button" = "Add";
+"pause_help" = "Pause";
+"play_help" = "Resume";
+"stop_current_screen" = "Stop Current Screen";
+"settings_button" = "Settings";
+"select_wallpaper_message" = "Select a wallpaper to edit properties";
+"new_video_wallpaper_title" = "New Video Wallpaper";
+"wallpaper_name_placeholder" = "Wallpaper Name";
+"cancel_button" = "Cancel";
+"create_button" = "Create";
+"show_in_finder" = "Show in Finder";
+"remove_from_list" = "Remove from List";
+"delete_wallpaper_file" = "Delete Wallpaper File (Permanent)";
+"no_playing_wallpaper" = "No wallpapers currently playing";
+"pause_all" = "Pause All";
+"resume_all" = "Resume All";
+"open_main_window" = "Open Main Window...";
+"check_updates_menu" = "Check for Updates...";
+"quit_app" = "Quit OpenMetalWallpaper";
+
+/* WallpaperInspector */
+"display_header" = "Display";
+"restore_defaults_button" = "Restore Defaults";
+"mode_label" = "Mode";
+"scale_label" = "Scale";
+"x_axis_label" = "X Axis";
+"y_axis_label" = "Y Axis";
+"reset_custom_params_button" = "Reset Custom Parameters";
+"web_wallpaper_auto_adapt" = "Web wallpaper automatically adapts to screen";
+"rotation_label" = "Rotation";
+"background_color_web_label" = "Background Color (Web)";
+"playback_header" = "Playback";
+"volume_label" = "Volume";
+"rate_label" = "Rate";
+"loop_playback" = "Loop Playback";
+"current_display" = "Current Display:";
+"fill_mode" = "Fill (Cover)";
+"fit_mode" = "Fit";
+"stretch_mode" = "Stretch";
+"custom_mode" = "Custom";
+"post_processing_header" = "Post Processing";
+"brightness_label" = "Brightness";
+"contrast_label" = "Contrast";
+"saturation_label" = "Saturation";
+"aa_notice" = "Note: Anti-aliasing only applies to 3D Scene wallpapers, not Video wallpapers.";
+
+/* Sidebar */
+"library_header" = "Wallpaper Library";
+"discover_header" = "Discover";
+/* EmptyStateView */
+"no_wallpapers_found" = "No wallpapers found";
+"drag_drop_hint" = "Drag and drop video files or folders here";
+"import_now_button" = "Import Now";
+
+/* WallpaperCard */
+"unknown_source" = "Unknown Source";
+
+/* LaunchManager */
+"launch_at_login" = "Launch at Login";
