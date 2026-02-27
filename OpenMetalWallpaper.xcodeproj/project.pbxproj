@@ -51,7 +51,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				mdl_parser.m,
 			);
 			target = BB713B272F1A22B600984369 /* OpenMetalWallpaper */;
 		};

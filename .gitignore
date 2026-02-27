@@ -69,3 +69,7 @@ OpenMetalWallpaper/pkg_parser*
 **/*Engine.swift
 OpenMetalWallpaper/Renderer/
 **/SteamService.swift
+PkgUnpackViewer.py
+SceneTexViewer.py
+pkg_unpacker*
+Utils

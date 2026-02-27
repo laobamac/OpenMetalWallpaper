@@ -20,6 +20,7 @@ struct WorkshopInspector: View {
     @State private var loginMessage = ""
     @State private var isLoginSuccess = false
     @State private var loginState: LoginStep = .credentials
+    @State private var showInstallAlert = false
     
     enum LoginStep { case credentials, twoFactor }
     
@@ -144,6 +145,12 @@ struct WorkshopInspector: View {
                 Spacer()
             }.padding(24)
         }
+        .alert("组件缺失", isPresented: $showInstallAlert) {
+            Button("立即安装") { steam.installSteamCMD() }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("下载创意工坊壁纸需要安装 SteamCMD 组件。是否立即安装？")
+        }
         .sheet(isPresented: $showLoginSheet) {
             VStack(spacing: 24) {
                 HStack {
@@ -170,7 +177,7 @@ struct WorkshopInspector: View {
                 if steam.isLoggingIn {
                     VStack(spacing: 12) {
                         ProgressView().scaleEffect(0.8)
-                        Text(steam.loginStatus) // 实时显示：请在手机确认 / 正在验证...
+                        Text(steam.loginStatus)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -200,7 +207,6 @@ struct WorkshopInspector: View {
             .padding()
             .frame(width: 350)
             .onAppear {
-                // 每次打开时重置状态
                 loginState = .credentials
                 password = ""
                 twoFactorCode = ""
@@ -230,6 +236,11 @@ struct WorkshopInspector: View {
     }
     
     private func handleDownload() {
+        if !steam.isSteamCMDInstalled {
+            showInstallAlert = true
+            return
+        }
+        
         if !steam.isSteamLoggedIn {
             showLoginSheet = true
         } else {

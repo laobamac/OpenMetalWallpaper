@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var library: WallpaperLibrary
+    @StateObject private var steam = SteamService.shared
     
     @State private var selectedCategory: String? = "installed"
     @State private var selectedWallpaper: WallpaperProject?
@@ -28,199 +29,211 @@ struct ContentView: View {
     @State private var isProcessingImport = false
     @State private var areIconsHidden: Bool = false
     @State private var showScreensaverSetAlert: Bool = false
+    @State private var showSteamSetupAlert: Bool = false
     
     @State private var showNewWallpaperSheet = false
     @State private var pendingVideoURL: URL?
     @State private var newWallpaperName: String = ""
     
-    @State private var localSortOption: LocalSortOption = .name
-    @State private var localFilterType: LocalFilterType = .all
+    @State private var libraryFilterType: String = "All"
+    @State private var librarySortOption: String = "Date"
     
     @AppStorage("omw_loadToMemory") private var loadToMemory: Bool = false
     
-    enum LocalSortOption { case name, date }
-    enum LocalFilterType { case all, scene, video, web }
-    
     var filteredWallpapers: [WallpaperProject] {
-        var items = library.wallpapers
+        var result = library.wallpapers
         
-        switch localFilterType {
-        case .scene: items = items.filter { $0.type?.lowercased() == "scene" }
-        case .video: items = items.filter { $0.type?.lowercased() == "video" }
-        case .web: items = items.filter { $0.type?.lowercased() == "web" }
-        case .all: break
+        if libraryFilterType != "All" {
+            let typeKey = libraryFilterType.lowercased()
+            result = result.filter { ($0.type?.lowercased() ?? "video") == typeKey }
         }
         
-        switch localSortOption {
-        case .name: items.sort { $0.title < $1.title }
-        case .date: items.sort { $0.title > $1.title }
+        switch librarySortOption {
+        case "Name":
+            result.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        case "Date":
+            result.sort { getFileDate($0.absolutePath) > getFileDate($1.absolutePath) }
+        default:
+            break
         }
         
-        return items
+        return result
+    }
+    
+    private func getFileDate(_ url: URL?) -> Date {
+        guard let url = url else { return Date.distantPast }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        return attributes?[.creationDate] as? Date ?? Date.distantPast
     }
     
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            VStack(spacing: 0) {
-                List(selection: $selectedCategory) {
-                    Section(header: Text("壁纸库")) {
-                        Label("已安装", systemImage: "externaldrive.fill")
-                            .tag("installed")
-                    }
-                    Section(header: Text("发现")) {
-                        Label("创意工坊", systemImage: "globe")
-                            .tag("workshop")
-                    }
-                }
-                .listStyle(.sidebar)
-                
-                Spacer()
-                
-                VStack(alignment: .leading, spacing: 10) {
-                    Divider()
-                    Link(destination: URL(string: "https://github.com/laobamac/OpenMetalWallpaper")!) {
-                        HStack(alignment: .center, spacing: 12) {
-                            if let logoImage = NSImage(named: "AppLogo") {
-                                Image(nsImage: logoImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
-                            } else {
-                                Image(nsImage: NSApp.applicationIconImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
-                            }
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("OpenMetalWallpaper").font(.system(size: 13, weight: .bold)).foregroundColor(.primary).lineLimit(1)
-                                Text("By laobamac").font(.caption).foregroundColor(.secondary)
-                            }
+        ZStack {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                VStack(spacing: 0) {
+                    List(selection: $selectedCategory) {
+                        Section(header: Text("壁纸库")) {
+                            Label("已安装", systemImage: "externaldrive.fill").tag("installed")
+                        }
+                        Section(header: Text("发现")) {
+                            Label("创意工坊", systemImage: "globe").tag("workshop")
                         }
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
-                    
-                    HStack {
-                        Text("License: AGPLv3").font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .padding(4).background(Color.gray.opacity(0.2)).cornerRadius(4)
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
-            }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
-            .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow).ignoresSafeArea())
-            
-        } content: {
-            ZStack {
-                VisualEffectView(material: .underWindowBackground, blendingMode: .behindWindow).ignoresSafeArea()
-                
-                if selectedCategory == "workshop" {
-                    WorkshopView(selectedItem: $selectedWorkshopItem).transition(.opacity)
-                } else {
-                    VStack(spacing: 0) {
-                        MonitorPickerHeader(monitors: monitors, selectedMonitor: $selectedMonitor, refreshAction: refreshMonitors)
-                            .padding(.horizontal).padding(.vertical, 8)
-                        
-                        HStack {
-                            Picker("排序", selection: $localSortOption) {
-                                Text("名称").tag(LocalSortOption.name)
-                                Text("最近").tag(LocalSortOption.date)
-                            }.pickerStyle(.menu).frame(width: 100)
-                            
-                            Picker("筛选", selection: $localFilterType) {
-                                Text("全部").tag(LocalFilterType.all)
-                                Text("场景").tag(LocalFilterType.scene)
-                                Text("视频").tag(LocalFilterType.video)
-                                Text("网页").tag(LocalFilterType.web)
-                            }.pickerStyle(.menu).frame(width: 100)
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                        
-                        ScrollView {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 16)], spacing: 16) {
-                                if filteredWallpapers.isEmpty {
-                                    EmptyStateView(isImporting: $isImporting).transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .listStyle(.sidebar)
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Divider()
+                        Link(destination: URL(string: "https://github.com/laobamac/OpenMetalWallpaper")!) {
+                            HStack(alignment: .center, spacing: 12) {
+                                if let logoImage = NSImage(named: "AppLogo") {
+                                    Image(nsImage: logoImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
                                 } else {
-                                    ForEach(filteredWallpapers) { wallpaper in
-                                        WallpaperCard(wallpaper: wallpaper)
-                                            .onTapGesture {
-                                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                                                    self.selectedWallpaper = wallpaper
-                                                    applyWallpaper(wallpaper)
-                                                }
-                                            }
-                                            .contextMenu {
-                                                Button(NSLocalizedString("show_in_finder", comment: "")) {
-                                                    if let path = wallpaper.absolutePath { NSWorkspace.shared.activateFileViewerSelecting([path]) }
-                                                }
-                                                let type = wallpaper.type?.lowercased() ?? "video"
-                                                if type == "video" || type == "scene" {
-                                                    Button(action: {
-                                                        if let path = wallpaper.absolutePath {
-                                                            WallpaperPersistence.shared.setScreensaverConfig(wallpaperId: wallpaper.id, filePath: path, loadToMemory: loadToMemory)
-                                                            showScreensaverSetAlert = true
-                                                        }
-                                                    }) { Label("设置为动态屏保", systemImage: "display.2") }
-                                                }
-                                                Divider()
-                                                Button(NSLocalizedString("remove_from_list", comment: "")) {
-                                                    stopWallpaper(wallpaper.id)
-                                                    library.removeWallpaper(id: wallpaper.id, deleteFile: false)
-                                                    if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
-                                                }
-                                                Button(NSLocalizedString("delete_wallpaper_file", comment: ""), role: .destructive) {
-                                                    stopWallpaper(wallpaper.id)
-                                                    library.removeWallpaper(id: wallpaper.id, deleteFile: true)
-                                                    if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
-                                                }
-                                            }
-                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: selectedWallpaper?.id == wallpaper.id ? 4 : 0).animation(.easeInOut(duration: 0.2), value: selectedWallpaper?.id))
-                                    }
+                                    Image(nsImage: NSApp.applicationIconImage).resizable().aspectRatio(contentMode: .fit).frame(width: 40, height: 40)
+                                }
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text("OpenMetalWallpaper").font(.system(size: 13, weight: .bold)).foregroundColor(.primary).lineLimit(1)
+                                    Text("By laobamac").font(.caption).foregroundColor(.secondary)
                                 }
                             }
-                            .padding()
-                            .animation(.easeInOut(duration: 0.3), value: selectedCategory)
                         }
-                        
-                        Divider()
-                        
-                        HStack(spacing: 16) {
-                            Button(action: { isImporting = true }) { Label(NSLocalizedString("add_button", comment: ""), systemImage: "plus") }
-                            Divider().frame(height: 20)
-                            Button(action: toggleGlobalPause) { Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2) }.buttonStyle(.borderless)
-                            Button(action: stopCurrentMonitor) { Label(NSLocalizedString("stop_button", comment: ""), systemImage: "square.fill") }
-                            Button(action: toggleIcons) { Label(areIconsHidden ? NSLocalizedString("show_icons", comment: "Show Icons") : NSLocalizedString("hide_icons", comment: "Hide Icons"), systemImage: areIconsHidden ? "eye.slash.fill" : "eye.fill") }.help(NSLocalizedString("hide_icons_help", comment: "Hide Desktop Icons"))
+                        .buttonStyle(.plain).padding(.top, 4)
+                        HStack {
+                            Text("License: AGPLv3").font(.system(size: 10, weight: .bold, design: .monospaced)).padding(4).background(Color.gray.opacity(0.2)).cornerRadius(4)
                             Spacer()
-                            if isProcessingImport { HStack { ProgressView().controlSize(.small); Text(importProgressText).font(.caption).foregroundColor(.secondary) }.padding(.trailing) }
-                            Button(action: { showSettings = true }) { Label(NSLocalizedString("settings_button", comment: ""), systemImage: "gearshape") }
                         }
-                        .padding()
-                        .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
+                    }.padding().background(Color(nsColor: .controlBackgroundColor))
+                }
+                .navigationSplitViewColumnWidth(min: 200, ideal: 220)
+                .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow).ignoresSafeArea())
+                
+            } content: {
+                ZStack {
+                    VisualEffectView(material: .underWindowBackground, blendingMode: .behindWindow).ignoresSafeArea()
+                    
+                    if selectedCategory == "workshop" {
+                        WorkshopView(selectedItem: $selectedWorkshopItem).transition(.opacity)
+                    } else {
+                        VStack(spacing: 0) {
+                            MonitorPickerHeader(monitors: monitors, selectedMonitor: $selectedMonitor, refreshAction: refreshMonitors)
+                                .padding(.horizontal).padding(.vertical, 8)
+                            
+                            HStack {
+                                Picker("类型", selection: $libraryFilterType) {
+                                    Text("全部").tag("All")
+                                    Text("场景").tag("Scene")
+                                    Text("视频").tag("Video")
+                                    Text("网页").tag("Web")
+                                }.pickerStyle(.segmented).frame(width: 200)
+                                Spacer()
+                                Picker("排序", selection: $librarySortOption) {
+                                    Text("最近").tag("Date")
+                                    Text("名称").tag("Name")
+                                }.pickerStyle(.menu).frame(width: 100)
+                            }
+                            .padding(.horizontal).padding(.bottom, 8)
+                            
+                            ScrollView {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 16)], spacing: 16) {
+                                    if filteredWallpapers.isEmpty {
+                                        EmptyStateView(isImporting: $isImporting).transition(.opacity.combined(with: .scale(scale: 0.95)))
+                                    } else {
+                                        ForEach(filteredWallpapers) { wallpaper in
+                                            WallpaperCard(wallpaper: wallpaper)
+                                                .onTapGesture {
+                                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                                        self.selectedWallpaper = wallpaper
+                                                        applyWallpaper(wallpaper)
+                                                    }
+                                                }
+                                                .contextMenu {
+                                                    Button(NSLocalizedString("show_in_finder", comment: "")) {
+                                                        if let path = wallpaper.absolutePath { NSWorkspace.shared.activateFileViewerSelecting([path]) }
+                                                    }
+                                                    let type = wallpaper.type?.lowercased() ?? "video"
+                                                    if type == "video" || type == "scene" {
+                                                        Button(action: {
+                                                            if let path = wallpaper.absolutePath {
+                                                                WallpaperPersistence.shared.setScreensaverConfig(wallpaperId: wallpaper.id, filePath: path, loadToMemory: loadToMemory)
+                                                                showScreensaverSetAlert = true
+                                                            }
+                                                        }) { Label("设置为动态屏保", systemImage: "display.2") }
+                                                    }
+                                                    Divider()
+                                                    Button(NSLocalizedString("remove_from_list", comment: "")) {
+                                                        stopWallpaper(wallpaper.id)
+                                                        library.removeWallpaper(id: wallpaper.id, deleteFile: false)
+                                                        if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
+                                                    }
+                                                    Button(NSLocalizedString("delete_wallpaper_file", comment: ""), role: .destructive) {
+                                                        stopWallpaper(wallpaper.id)
+                                                        library.removeWallpaper(id: wallpaper.id, deleteFile: true)
+                                                        if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
+                                                    }
+                                                }
+                                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: selectedWallpaper?.id == wallpaper.id ? 4 : 0).animation(.easeInOut(duration: 0.2), value: selectedWallpaper?.id))
+                                        }
+                                    }
+                                }
+                                .padding()
+                                .animation(.easeInOut(duration: 0.3), value: selectedCategory)
+                            }
+                            
+                            Divider()
+                            
+                            HStack(spacing: 16) {
+                                Button(action: { isImporting = true }) { Label(NSLocalizedString("add_button", comment: ""), systemImage: "plus") }
+                                Divider().frame(height: 20)
+                                Button(action: toggleGlobalPause) { Image(systemName: isGlobalPaused ? "play.fill" : "pause.fill").font(.title2) }.buttonStyle(.borderless)
+                                Button(action: stopCurrentMonitor) { Label(NSLocalizedString("stop_button", comment: ""), systemImage: "square.fill") }
+                                Button(action: toggleIcons) { Label(areIconsHidden ? NSLocalizedString("show_icons", comment: "Show Icons") : NSLocalizedString("hide_icons", comment: "Hide Icons"), systemImage: areIconsHidden ? "eye.slash.fill" : "eye.fill") }.help(NSLocalizedString("hide_icons_help", comment: "Hide Desktop Icons"))
+                                Spacer()
+                                if isProcessingImport { HStack { ProgressView().controlSize(.small); Text(importProgressText).font(.caption).foregroundColor(.secondary) }.padding(.trailing) }
+                                Button(action: { showSettings = true }) { Label(NSLocalizedString("settings_button", comment: ""), systemImage: "gearshape") }
+                            }
+                            .padding()
+                            .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
+                        }
+                        .transition(.move(edge: .leading))
                     }
-                    .transition(.move(edge: .leading))
+                }
+                .edgesIgnoringSafeArea(.top)
+                .onDrop(of: [.fileURL], isTargeted: nil) { providers in handleDrop(providers: providers) }
+                
+            } detail: {
+                ZStack {
+                    VisualEffectView(material: .contentBackground, blendingMode: .behindWindow).ignoresSafeArea()
+                    
+                    if selectedCategory == "workshop" {
+                        if let item = selectedWorkshopItem {
+                            WorkshopInspector(item: item).id(item.id).transition(.move(edge: .trailing).combined(with: .opacity)).animation(.easeInOut(duration: 0.3), value: item.id)
+                        } else {
+                            VStack {
+                                Image(systemName: "globe").font(.system(size: 60)).foregroundColor(.secondary.opacity(0.3))
+                                Text("在左侧列表中浏览和下载壁纸").foregroundColor(.secondary).padding(.top)
+                            }
+                        }
+                    } else {
+                        if let wallpaper = selectedWallpaper, let monitor = selectedMonitor {
+                            WallpaperInspector(wallpaper: wallpaper, monitor: monitor).id(wallpaper.id).transition(.move(edge: .trailing).combined(with: .opacity)).animation(.easeInOut(duration: 0.3), value: wallpaper.id)
+                        } else {
+                            Text(NSLocalizedString("select_wallpaper_message", comment: "")).foregroundColor(.secondary).font(.title2)
+                        }
+                    }
                 }
             }
-            .edgesIgnoringSafeArea(.top)
-            .onDrop(of: [.fileURL], isTargeted: nil) { providers in handleDrop(providers: providers) }
             
-        } detail: {
-            ZStack {
-                VisualEffectView(material: .contentBackground, blendingMode: .behindWindow).ignoresSafeArea()
-                
-                if selectedCategory == "workshop" {
-                    if let item = selectedWorkshopItem {
-                        WorkshopInspector(item: item).id(item.id).transition(.move(edge: .trailing).combined(with: .opacity)).animation(.easeInOut(duration: 0.3), value: item.id)
-                    } else {
-                        VStack {
-                            Image(systemName: "globe").font(.system(size: 60)).foregroundColor(.secondary.opacity(0.3))
-                            Text("在左侧列表中浏览和下载壁纸").foregroundColor(.secondary).padding(.top)
-                        }
+            if steam.isGlobalWorking {
+                ZStack {
+                    Color.black.opacity(0.7).ignoresSafeArea()
+                    VStack(spacing: 20) {
+                        ProgressView().scaleEffect(1.5)
+                        Text(steam.globalWorkText).font(.title3).foregroundColor(.white).bold()
+                        Text("请勿关闭应用...").foregroundColor(.gray)
                     }
-                } else {
-                    if let wallpaper = selectedWallpaper, let monitor = selectedMonitor {
-                        WallpaperInspector(wallpaper: wallpaper, monitor: monitor).id(wallpaper.id).transition(.move(edge: .trailing).combined(with: .opacity)).animation(.easeInOut(duration: 0.3), value: wallpaper.id)
-                    } else {
-                        Text(NSLocalizedString("select_wallpaper_message", comment: "")).foregroundColor(.secondary).font(.title2)
-                    }
+                    .padding(40)
+                    .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
+                    .cornerRadius(16)
                 }
+                .zIndex(9999)
             }
         }
         .frame(minWidth: 1000, minHeight: 600)
@@ -229,6 +242,10 @@ struct ContentView: View {
         }
         .alert("设置成功", isPresented: $showScreensaverSetAlert) { Button("好的", role: .cancel) { } } message: { Text("该内容已设置为动态屏保。\n请在“系统设置 -> 屏幕保护程序”中选择 OpenMetalScreensaver 即可预览。") }
         .alert("导入状态", isPresented: $showImportAlert) { Button("OK", role: .cancel) { } } message: { Text(importStatusMessage) }
+        .alert("SteamCMD 未安装", isPresented: $showSteamSetupAlert) {
+            Button("立即安装") { steam.installSteamCMD() }
+            Button("取消", role: .cancel) { }
+        } message: { Text("启用创意工坊支持需要安装 SteamCMD 组件。是否现在安装？") }
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.folder], allowsMultipleSelection: true) { result in
             if let urls = try? result.get() { for url in urls { guard url.startAccessingSecurityScopedResource() else { continue } }; handleBatchImport(urls: urls) }
         }
@@ -251,7 +268,13 @@ struct ContentView: View {
                 }
             }.padding().frame(width: 350, height: 150)
         }
-        .onAppear { if selectedMonitor == nil { selectedMonitor = monitors.first }; syncSelection() }
+        .onAppear {
+            if selectedMonitor == nil { selectedMonitor = monitors.first }
+            syncSelection()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                if !steam.isSteamCMDInstalled { showSteamSetupAlert = true }
+            }
+        }
         .onChange(of: selectedMonitor) { syncSelection() }
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in syncSelection() }
         .onReceive(NotificationCenter.default.publisher(for: .globalPauseDidChange)) { _ in self.isGlobalPaused = WallpaperEngine.shared.isGlobalPaused }
@@ -283,11 +306,11 @@ struct ContentView: View {
                         SteamService.shared.completeTask()
                         if success {
                             self.selectedCategory = "installed"
-                            // 自动应用逻辑
-                            let folderName = path.lastPathComponent
-                            if let newWp = self.library.wallpapers.first(where: { $0.id.contains(folderName) || $0.absolutePath?.lastPathComponent == folderName }) {
-                                self.selectedWallpaper = newWp
-                                self.applyWallpaper(newWp)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                if let newWp = self.library.wallpapers.max(by: { self.getFileDate($0.absolutePath) < self.getFileDate($1.absolutePath) }) {
+                                    self.selectedWallpaper = newWp
+                                    self.applyWallpaper(newWp)
+                                }
                             }
                         }
                     }
@@ -309,8 +332,8 @@ struct ContentView: View {
                         self.showImportAlert = true
                         SteamService.shared.completeTask()
                         self.selectedCategory = "installed"
-                        // 自动应用
-                        if let newWp = self.library.wallpapers.first(where: { $0.id == destName }) {
+                        
+                        if let newWp = self.library.wallpapers.first(where: { $0.absolutePath?.lastPathComponent == destName }) {
                             self.selectedWallpaper = newWp
                             self.applyWallpaper(newWp)
                         }
@@ -327,8 +350,6 @@ struct ContentView: View {
             }
         }
     }
-    
-    // MARK: - 常规 Helper 方法
     
     private func toggleIcons() {
         WallpaperEngine.shared.toggleHideIcons()
@@ -360,19 +381,17 @@ struct ContentView: View {
             var isDir: ObjCBool = false
             if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
                 if isDir.boolValue {
-                    // Check if it's potentially a scene wallpaper
                     if FileManager.default.fileExists(atPath: url.appendingPathComponent("scene.pkg").path) ||
                         FileManager.default.fileExists(atPath: url.appendingPathComponent("project.json").path) {
                         sceneCandidates.append(url)
                     } else {
-                        // Treat as video folder (old logic) or ignore
                         videoURLs.append(url)
                     }
                 } else {
                     let ext = url.pathExtension.lowercased()
                     if ["mp4", "webm", "mov", "m4v"].contains(ext) {
                         self.pendingVideoURL = url; self.newWallpaperName = url.deletingPathExtension().lastPathComponent; self.showNewWallpaperSheet = true
-                        return // Handle single video add via sheet
+                        return
                     } else if ext == "pkg" {
                         sceneCandidates.append(url)
                     }
@@ -380,12 +399,10 @@ struct ContentView: View {
             }
         }
             
-        // Handle Scenes
         if !sceneCandidates.isEmpty {
             isProcessingImport = true
             importProgressText = "Initializing..."
                 
-            // Sequential processing
             func processNext(index: Int) {
                 guard index < sceneCandidates.count else {
                     isProcessingImport = false
@@ -405,7 +422,6 @@ struct ContentView: View {
             processNext(index: 0)
         }
             
-        // Handle Video Folders (Legacy)
         if !videoURLs.isEmpty {
             isProcessingImport = true
             importProgressText = "Importing videos..."
