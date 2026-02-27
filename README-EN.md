@@ -2,8 +2,10 @@
   <img src="AppIcon.png" width="180" alt="OpenMetalWallpaper Logo">
   <br><br>
   <h1>OpenMetalWallpaper</h1>
-  <h3>Illuminate Your macOS Desktop, Frame by Frame</h3>
-  <br>
+  <h3>Light up your macOS desktop, making every frame a piece of art</h3>
+  <a href="README.md">
+    <img src="https://img.shields.io/badge/简体中文-文档-red?style=flat-square" alt="Chinese Docs">
+  </a>
 </div>
 
 <div align="center">
@@ -17,121 +19,92 @@
 
 <br>
 
-**OpenMetalWallpaper** is a high-performance, open-source dynamic wallpaper engine built specifically for macOS. It leverages native Metal and AVFoundation technologies to deliver a supremely smooth playback experience while maintaining minimal system resource consumption.
+**OpenMetalWallpaper** is a high-performance open-source dynamic wallpaper engine built exclusively for macOS. Leveraging native Metal and AVFoundation technologies, it delivers an ultra-smooth playback experience while maintaining minimal system resource usage.
 
-In addition to its powerful desktop wallpaper features, this project includes a complementary **Dynamic Screen Saver**, allowing you to seamlessly apply your favorite video wallpapers as your system's screen saver.
+In addition to its powerful desktop wallpaper capabilities, this project also includes a companion **dynamic screensaver** that seamlessly allows you to use your favorite video wallpapers as system screensavers.
 
 > [!NOTE]
-> 🚧 **Development Status**: Currently, **Video** wallpapers are fully supported. **Web** wallpapers now support most interactive features. **Scene** wallpaper support is under active development and testing and is not yet available.
+> 🚧 **Development Status**: Currently fully supports **Video** format wallpapers. **Web** wallpapers support most interactive features. **Scene** wallpapers are under active development and testing; basic bone and texture parsing is functional. **Dynamic components (e.g., clocks) are not yet supported** and will be added progressively!
+
+> [!WARNING]
+> ⚠️ The renderer and parsing scripts are not open source. All other code files uploaded to this repository are licensed under the **AGPLv3.0** open-source license.
 
 ---
 
 ## ✨ Core Features
 
-### 🖥️ Desktop Dynamic Wallpaper
-- **Native & High Performance**: Ditching Electron, it's built with Swift + Metal for minimal CPU/GPU usage.
-- **Multi-Screen Independent Control**: Supports multi-display setups. Configure unique wallpaper, volume, and scaling mode for each screen.
-- **Comprehensive Playback Control**:
-  - Supports **0.1x - 2.0x** playback speed.
-  - Multiple scaling modes: **Fill / Fit / Stretch / Custom (Pan & Zoom)**.
-  - Video color adjustment (Brightness, Contrast, Saturation).
-- **Web Wallpaper Interaction**: Load webpage wallpapers with mouse interaction support (requires enabling icon hiding in settings to prevent conflicts).
-- **Intelligent Resource Management**:
-  - **Memory Preload (Memory Mode)**: Load small videos into RAM for playback, eliminating loop stutter caused by disk I/O.
-  - **Auto-Pause**: Automatically pauses when another app goes full-screen or is foregrounded, freeing GPU resources.
+### ⭐️ Steam Workshop Support!
+- Log in with your Steam account and download wallpapers directly from the **Wallpaper Engine** Steam Workshop!
+- You must own Wallpaper Engine on Windows.
 
-### 🎞️ Dynamic Screen Saver (New!)
-- **Independent Configuration**: Your screen saver is no longer tied to your desktop wallpaper.
-- **Purpose-Built Optimization**: In screen saver mode, a **0.5x slow-motion playback** strategy is used for a more elegant, less distracting standby atmosphere, while significantly reducing long-term power consumption.
-- **Seamless Integration**: Simply right-click on a video within the main app to set it as the screen saver source.
+### 🖥️ Desktop Dynamic Wallpapers
+- **Native High Performance**: Built with Swift + Metal (no Electron), ensuring extremely low CPU/GPU usage.
+- **Multi-Monitor Control**: Supports multi-display environments, allowing independent wallpaper, volume, and scaling settings per screen.
+- **Rich Playback Controls**:
+  - Supports **0.1x - 2.0x** playback speed.
+  - Multiple display modes: **Fill / Fit / Stretch / Custom (pan + zoom)**.
+  - Video color adjustment (brightness, contrast, saturation).
+- **Interactive Web Wallpapers**: Load web-based wallpapers with mouse interaction (requires hiding desktop icons in settings to avoid conflicts).
+- **Smart Resource Management**:
+  - **Memory Preloading (Memory Mode)**: Load small video files into memory for playback, eliminating loop stutter caused by disk I/O.
+  - **Auto-Pause**: Automatically pauses when other apps go full-screen or become active, freeing GPU resources.
+
+### 🎞️ Dynamic Screensaver (New!)
+- **Independent Configuration**: The screensaver is no longer tied to your desktop wallpaper—you are in control.
+- **Exclusive Optimization**: Screensaver mode uses a **0.5x slow-motion playback** strategy for a more elegant, non-intrusive standby experience while significantly reducing power consumption during extended operation.
+- **Seamless Integration**: Right-click any video in the app to set it as the screensaver source.
 
 ### 📂 Compatibility & Import
-- **Steam Format Support**: Perfectly compatible with Wallpaper Engine's video wallpaper format (folders containing `project.json`).
+- **Steam Format Support**: Fully compatible with Wallpaper Engine wallpaper formats (folders containing `project.json`).
 - **Easy Import**: Drag and drop files or folders directly into the wallpaper library.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Install the Application
-Download the latest `OpenMetalWallpaper.dmg` and drag the app to your "Applications" folder.
-> [!WARNING]
-> 🚧 The project is still in development. No pre-built binaries are released yet. Please clone and compile the repository for testing.
+### 1. Install the App
+Download the latest `OpenMetalWallpaper.dmg` and drag the app into your "Applications" folder.
 
-### 2. Install the Screen Saver (Optional)
+### 2. Install the Screensaver (Optional)
 1. Double-click the `OpenMetalScreensaver.saver` file.
-2. The system will prompt for installation. Choose to install for "Current User" or "All Users".
-3. In **System Settings > Screen Saver**, find and select **OpenMetalScreensaver**.
+2. The system will prompt for installation; choose "Install for this user" or "Install for all users."
+3. Go to **System Settings → Screen Saver**, find and select **OpenMetalScreensaver**.
 
-### 3. Set Screen Saver Content
-Due to macOS sandboxing, the screen saver needs its content specified manually:
-1. Launch the main **OpenMetalWallpaper** application.
-2. In the wallpaper library, **right-click** on the **video wallpaper** you want to use as your screen saver.
-3. Select **"Set as Dynamic Screen Saver"** from the menu.
-4. Now, when your Mac sleeps or the screen saver activates, the video will play gracefully at 0.5x speed.
-
-> **Note**: The screen saver feature currently only supports **Video** type wallpapers.
+### 3. Set Screensaver Content
+Due to macOS sandbox restrictions, screensaver content must be manually specified:
+1. Open the **OpenMetalWallpaper** main app.
+2. In the wallpaper library, **right-click** the **video wallpaper** you want to use as a screensaver.
+3. Select **"Set as Dynamic Screensaver"** from the menu.
+4. Now, when your Mac sleeps or triggers the screensaver, the video will play gracefully at 0.5x speed.
 
 ---
 
 ## ⚙️ Advanced Configuration
 
-### Memory Preload (Eliminate Stutter)
-If your video wallpaper has a slight stutter at the loop point, or you wish to reduce disk activity:
-1. Open the app's Preferences.
-2. In the "Performance" section, check **"Preload Video into Memory"**.
-3. *Note: This may use significant memory for large video files. Recommended for short, looping videos only.*
+### Memory Preloading (Eliminate Stutter)
+If your video wallpaper stutters slightly at loop points, or if you want to reduce disk read/write:
+1. Open the app preferences.
+2. Under the "Performance" section, check **"Preload video into memory"**.
+3. *Note: This may use more memory for large video files; recommended for short, looping videos only.*
 
-### Web Wallpaper Interaction
-Want to play games or interact with a webpage on your desktop?
-1. Select a Web type wallpaper.
-2. In the right-side property panel, enable **"Allow Mouse Interaction"**.
-3. **Important**: To capture mouse clicks, the app must cover the desktop icons. The system will automatically prompt you to **Hide Desktop Icons**. Click confirm to enable interactive mode.
-
----
-
-## 🛠️ Development & Build
-
-Developers are warmly welcomed to contribute!
-
-### Prerequisites
-- macOS 14.0 (Sonoma) or later
-- Xcode 15.0+
-- Swift 5.9+
-
-### Build Steps
-1. Clone the repository:
-   ```
-   git clone https://github.com/laobamac/OpenMetalWallpaper.git
-   ```
-2. Open `OpenMetalWallpaper.xcodeproj`.
-3. This is a multi-target project containing:
-   * `OpenMetalWallpaper`: The main application.
-   * `OpenMetalScreensaver`: The screen saver extension.
-
-4. Ensure you select your own development team in Signing & Capabilities.
-5. Press Cmd+R to run.
+### Interactive Web Wallpapers
+Want to play games or interact with web-based wallpapers on your desktop?
+1. Select a Web-type wallpaper.
+2. In the right-side property panel, enable **"Allow mouse interaction"**.
+3. **Important**: To respond to mouse clicks, the app must overlay desktop icons. The system will automatically prompt you to **hide desktop icons**—click confirm to enable interactive mode.
 
 ---
 
 ## 🤝 Contributing
 
-Community contributions are highly welcome! Whether it's ideas for new features, bug reports, or code submissions (PRs), everything helps make this project better.
+We warmly welcome contributions from the community! Whether it's new feature ideas, bug reports, or code submissions (PRs), everything helps make this project better.
 
 * **Issues**: Found a bug or have a suggestion? Please open an Issue.
-* **Pull Requests**: Welcome fixes or new feature implementations.
+* **Pull Requests**: Welcome fixes or new features via PR.
 
 ## 📄 License
 
-This project is open-sourced under the **AGPLv3** license. See the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
-
-## ❤️ Thank you
-
-[@PIKACHUIM](https://github.com/PIKACHUIM) Great help in debugging/modeling
-
-[@Elysia-best](https://github.com/elysia-best) Great help in debugging/modeling
-
-[@win10Q](https://github.com/win10Q) Great help in mice/touching fish
+This project is open-source under the **AGPLv3** license. See the [LICENSE](LICENSE) file for details.
 
 ---
 
