@@ -8,9 +8,7 @@
 import ScreenSaver
 import WebKit
 import AVFoundation
-import MetalKit
 
-// MARK: - Resource Loader
 class DataResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
     let data: Data
     let contentType: String
@@ -50,19 +48,10 @@ class OpenMetalScreensaverView: ScreenSaverView {
     private var player: AVQueuePlayer?
     private var looper: AVPlayerLooper?
     private var errorLabel: NSTextField?
-    
-    // Scene Support
-    private var mtkView: MTKView?
-    private var renderer: Renderer?
-    
-    // Keep reference
     private var resourceLoader: DataResourceLoader?
     private var rateObservation: NSKeyValueObservation?
-    
-    // Config
     private var useMemory: Bool = false
     
-    // MARK: - Initialization
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
         self.animationTimeInterval = 1.0 / 30.0
@@ -82,7 +71,6 @@ class OpenMetalScreensaverView: ScreenSaverView {
         }
     }
     
-    // MARK: - Real Path Resolution
     private func getRealHomeDirectory() -> String {
         if let pw = getpwuid(getuid()) {
             return String(cString: pw.pointee.pw_dir)
@@ -122,47 +110,13 @@ class OpenMetalScreensaverView: ScreenSaverView {
         cleanup()
         let ext = url.pathExtension.lowercased()
         
-        if ["html", "htm", "php"].contains(ext) {
-            showError("屏保暂不支持 Web 壁纸")
-        } else if ext == "json" {
-            playScene(url: url)
+        if ["html", "htm", "php", "json"].contains(ext) {
+            showError("屏保暂不支持该格式壁纸")
         } else {
             playVideo(url: url)
         }
     }
     
-    // MARK: - Scene Player
-    private func playScene(url: URL) {
-        guard let device = MTLCreateSystemDefaultDevice() else {
-            showError("不支持 Metal")
-            return
-        }
-        
-        let mtkView = MTKView(frame: self.bounds, device: device)
-        mtkView.autoresizingMask = [.width, .height]
-        mtkView.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        mtkView.colorPixelFormat = .bgra8Unorm
-        mtkView.depthStencilPixelFormat = .depth32Float_stencil8
-        mtkView.preferredFramesPerSecond = 30
-        
-        if let renderer = Renderer(device: device) {
-            self.renderer = renderer
-            // [Modified] Scene wallpaper uses normal speed (1.0)
-            renderer.timeScale = 1.0
-            mtkView.delegate = renderer
-            
-            let folder = url.deletingLastPathComponent()
-            renderer.loadScene(folder: folder)
-        } else {
-            showError("渲染器初始化失败")
-            return
-        }
-        
-        self.addSubview(mtkView)
-        self.mtkView = mtkView
-    }
-    
-    // MARK: - Video Player
     private func playVideo(url: URL) {
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
         let shouldLoadToMemory = self.useMemory && (fileSize > 0 && fileSize < 500 * 1024 * 1024)
@@ -213,8 +167,7 @@ class OpenMetalScreensaverView: ScreenSaverView {
         self.playerLayer = layer
         
         rateObservation = queuePlayer.observe(\.rate, options: [.new]) { [weak self] player, change in
-            guard let self = self else { return }
-            // [Modified] Only enforce 0.5x speed for Video Player (Scene Player logic is separate)
+            guard self != nil else { return }
             if abs(player.rate - 0.5) > 0.01 && player.rate != 0 {
                 player.rate = 0.5
             }
@@ -236,10 +189,6 @@ class OpenMetalScreensaverView: ScreenSaverView {
         webView?.removeFromSuperview()
         webView = nil
         resourceLoader = nil
-        
-        mtkView?.removeFromSuperview()
-        mtkView = nil
-        renderer = nil
         
         errorLabel?.removeFromSuperview()
         errorLabel = nil
@@ -265,19 +214,16 @@ class OpenMetalScreensaverView: ScreenSaverView {
         label.cell?.isScrollable = false
     }
     
-    // MARK: - Lifecycle
     override func startAnimation() {
         super.startAnimation()
         if let p = player {
             p.playImmediately(atRate: 0.5)
         }
-        mtkView?.isPaused = false
     }
     
     override func stopAnimation() {
         super.stopAnimation()
         if let p = player { p.pause() }
-        mtkView?.isPaused = true
     }
     
     override func draw(_ rect: NSRect) {
@@ -289,7 +235,6 @@ class OpenMetalScreensaverView: ScreenSaverView {
     override func resize(withOldSuperviewSize oldSize: NSSize) {
         super.resize(withOldSuperviewSize: oldSize)
         playerLayer?.frame = self.bounds
-        mtkView?.frame = self.bounds
     }
     
     override var hasConfigureSheet: Bool { return false }

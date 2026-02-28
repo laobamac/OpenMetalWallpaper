@@ -11,12 +11,10 @@ struct WallpaperInspector: View {
     let wallpaper: WallpaperProject
     let monitor: Monitor
     
-    // Engine State
     @State private var volume: Float = 0.5
     @State private var playbackRate: Float = 1.0
     @State private var isLoopEnabled: Bool = true
     
-    // Visual State
     @State private var scaleMode: WallpaperScaleMode = .fill
     @State private var manualScale: CGFloat = 1.0
     @State private var manualOffsetX: CGFloat = 0.0
@@ -26,24 +24,19 @@ struct WallpaperInspector: View {
     @State private var contrast: Float = 1.0
     @State private var saturation: Float = 1.0
     
-    // Dynamic Properties
     @State private var webProps: [String: Any] = [:]
     
-    // Preview Zoom State
     @State private var showPreviewZoom: Bool = false
     
-    // Interaction Logic State
     @State private var isInteractive: Bool = false
     @State private var showIconHiddenAlert: Bool = false
     
-    // [New] Permission Alert
     @State private var showPermissionAlert: Bool = false
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 
-                // Header Info with Zoomable Image
                 HStack(alignment: .top, spacing: 16) {
                     if let thumbPath = wallpaper.thumbnailPath, let nsImage = NSImage(contentsOf: thumbPath) {
                         Image(nsImage: nsImage)
@@ -53,7 +46,7 @@ struct WallpaperInspector: View {
                             .cornerRadius(6)
                             .clipped()
                             .onTapGesture {
-                                showPreviewZoom = true // Trigger zoom
+                                showPreviewZoom = true
                             }
                             .help("点击放大预览")
                     } else {
@@ -81,25 +74,19 @@ struct WallpaperInspector: View {
                 
                 Divider()
                 
-                // 1.5 Interactive Toggle (Web/Scene Only)
-                if wallpaper.type?.lowercased() == "web" || wallpaper.type?.lowercased() == "scene" {
+                if wallpaper.type?.lowercased() == "web" {
                     GroupBox {
-                        // 使用 Binding 的自定义 set 逻辑来拦截点击
                         Toggle("允许鼠标互动 (Allow Interaction)", isOn: Binding(
                             get: { isInteractive },
                             set: { newValue in
                                 if newValue {
-                                    // 用户想要开启互动
                                     if WallpaperEngine.shared.areIconsHidden {
-                                        // 图标已经隐藏，直接开启
                                         isInteractive = true
                                         syncToEngine()
                                     } else {
-                                        // 图标未隐藏，弹出提示，暂不开启
                                         showIconHiddenAlert = true
                                     }
                                 } else {
-                                    // 用户关闭互动，直接关闭
                                     isInteractive = false
                                     syncToEngine()
                                 }
@@ -109,7 +96,6 @@ struct WallpaperInspector: View {
                     }
                 }
                 
-                // Web Properties
                 if let properties = wallpaper.general?.properties, !properties.isEmpty {
                     Text("壁纸设置 (Properties)").font(.headline)
                     LazyVStack(alignment: .leading, spacing: 16) {
@@ -129,7 +115,6 @@ struct WallpaperInspector: View {
                     Divider()
                 }
                 
-                // Post Processing
                 GroupBox(label: Text("画面调节 (Post Processing)").bold()) {
                     VStack(spacing: 12) {
                         LabeledSlider(label: "亮度", value: $brightness, range: -0.5...0.5, format: "%.2f")
@@ -141,7 +126,6 @@ struct WallpaperInspector: View {
                 .onChange(of: contrast) { syncToEngine() }
                 .onChange(of: saturation) { syncToEngine() }
                 
-                // Transform
                 GroupBox(label: Text("位置与变换 (Transform)").bold()) {
                     VStack(alignment: .leading, spacing: 12) {
                         Picker("模式", selection: $scaleMode) {
@@ -169,7 +153,6 @@ struct WallpaperInspector: View {
                 .onChange(of: manualOffsetX) { syncToEngine() }
                 .onChange(of: manualOffsetY) { syncToEngine() }
                 
-                // 5. Playback
                 GroupBox(label: Text("播放控制 (Playback)").bold()) {
                     VStack(spacing: 12) {
                         LabeledSlider(label: "音量", value: $volume, range: 0...1, format: "%.0f%%", multiplier: 100)
@@ -189,40 +172,31 @@ struct WallpaperInspector: View {
         .onChange(of: monitor) { loadFromEngine() }
         .onReceive(NotificationCenter.default.publisher(for: .wallpaperDidChange)) { _ in loadFromEngine() }
         
-        // Icon Hidden Alert (Updated Logic with 3 Options)
         .alert("需要隐藏桌面图标", isPresented: $showIconHiddenAlert) {
             Button("隐藏并开启") {
-                // 1. 隐藏图标 (全局)
                 if !WallpaperEngine.shared.areIconsHidden {
                     WallpaperEngine.shared.toggleHideIcons()
-                    // 强制刷新 ContentView 的按钮状态
                     NotificationCenter.default.post(name: Notification.Name("omw_icons_hidden_changed"), object: nil)
                 }
-                // 2. 开启互动 (当前壁纸)
                 isInteractive = true
                 syncToEngine()
             }
             
             Button("不隐藏并开启 (需辅助功能权限)") {
-                // 仅开启互动，保持图标显示
-                // 检查辅助功能权限
                 if AccessibilityUtils.isTrusted() {
                     isInteractive = true
                     syncToEngine()
                 } else {
-                    // 没有权限，弹出提示
                     showPermissionAlert = true
                 }
             }
             
             Button("取消", role: .cancel) {
-                // 取消操作，isInteractive 保持为 false
             }
         } message: {
             Text("为了最佳体验，建议隐藏桌面图标以防止点击被Finder拦截。\n如果不隐藏图标，App 需要【辅助功能权限】来穿透 Finder 捕获鼠标事件。")
         }
         
-        // [New] Permission Alert
         .alert("需要辅助功能权限", isPresented: $showPermissionAlert) {
             Button("去设置") {
                 AccessibilityUtils.promptForPermissions()
@@ -232,7 +206,6 @@ struct WallpaperInspector: View {
             Text("由于 Finder 图标层级较高，您必须在“系统设置 -> 隐私与安全性 -> 辅助功能”中授予 OpenMetalWallpaper 权限，才能在不隐藏图标的情况下控制壁纸。")
         }
         
-        // Full Screen Image Overlay
         .overlay {
             if showPreviewZoom, let thumbPath = wallpaper.thumbnailPath, let nsImage = NSImage(contentsOf: thumbPath) {
                 ZStack {
@@ -268,7 +241,6 @@ struct WallpaperInspector: View {
         .animation(.easeInOut, value: showPreviewZoom)
     }
     
-    // MARK: - Logic Helpers
     private func loadFromEngine() {
         let controller = WallpaperEngine.shared.getController(for: monitor.screen)
         if controller.currentWallpaperID == wallpaper.id {
@@ -278,7 +250,6 @@ struct WallpaperInspector: View {
             self.rotation = controller.rotation
             self.brightness = controller.brightness; self.contrast = controller.contrast; self.saturation = controller.saturation
             
-            // Load Interaction State
             self.isInteractive = controller.isInteractive
             
             self.webProps = controller.webProperties
@@ -298,9 +269,7 @@ struct WallpaperInspector: View {
         controller.rotation = rotation
         controller.setPostProcessing(brightness: brightness, contrast: contrast, saturation: saturation)
         
-        // Sync Interaction State
         controller.isInteractive = isInteractive
-        // Important: Update window pass-through state immediately
         controller.updateWindowInteraction()
     }
     
@@ -326,7 +295,6 @@ struct WallpaperInspector: View {
     }
 }
 
-// MARK: - Components
 struct LabeledSlider: View {
     let label: String
     @Binding var value: Float

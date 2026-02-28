@@ -17,17 +17,11 @@ struct SidebarView: View {
                     Label(NSLocalizedString("installed_label", comment: "Installed"), systemImage: "externaldrive.fill")
                         .tag("installed")
                 }
-                
-                Section(header: Text(NSLocalizedString("discover_header", comment: "Discover"))) {
-                    Label(NSLocalizedString("workshop_label", comment: "Workshop"), systemImage: "globe")
-                        .tag("workshop")
-                }
             }
             .listStyle(.sidebar)
             
             Spacer()
             
-            // Footer
             VStack(alignment: .leading, spacing: 10) {
                 Divider()
                 Link(destination: URL(string: "https://github.com/laobamac/OpenMetalWallpaper")!) {

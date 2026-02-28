@@ -28,7 +28,6 @@ struct WallpaperConfig: Codable {
 class WallpaperPersistence {
     static let shared = WallpaperPersistence()
     
-    // 屏保配置文件路径: ~/Library/Application Support/OpenMetalWallpaper/screensaver.json
     private var sharedConfigURL: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let folder = appSupport.appendingPathComponent("OpenMetalWallpaper")
@@ -75,34 +74,25 @@ class WallpaperPersistence {
         return UserDefaults.standard.string(forKey: key)
     }
     
-    // MARK: - Manual Screensaver Set
     func setScreensaverConfig(wallpaperId: String, filePath: URL, loadToMemory: Bool) {
         let configData: [String: String] = [
             "wallpaperId": wallpaperId,
             "filePath": filePath.path,
-            "loadToMemory": loadToMemory ? "true" : "false" // 写入内存设置
+            "loadToMemory": loadToMemory ? "true" : "false"
         ]
         
         do {
             let fileURL = sharedConfigURL
             let data = try JSONEncoder().encode(configData)
             try data.write(to: fileURL)
-            print("Manual screensaver set: \(filePath.lastPathComponent), Memory: \(loadToMemory)")
         } catch {
-            print("Failed to set screensaver: \(error)")
         }
     }
     
-    func deleteAllUserData() {
-        let defaults = UserDefaults.standard
-        let dictionary = defaults.dictionaryRepresentation()
-        
-        dictionary.keys.forEach { key in
-            if key.hasPrefix("omw_cfg_") || key.hasPrefix("omw_active_wp_") {
-                defaults.removeObject(forKey: key)
-            }
+    func factoryResetSettings() {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
         }
-        defaults.synchronize()
-        print("All wallpaper configurations cleared.")
+        try? FileManager.default.removeItem(at: sharedConfigURL)
     }
 }

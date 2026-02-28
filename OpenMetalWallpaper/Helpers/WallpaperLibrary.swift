@@ -10,8 +10,6 @@ import Combine
 import SwiftUI
 import AVFoundation
 
-// MARK: - JSON Structures
-// 用于处理 JSON 中可能是 String 或 Number 的 value
 enum AnyCodableValue: Codable, Hashable {
     case string(String)
     case number(Double)
@@ -46,7 +44,6 @@ enum AnyCodableValue: Codable, Hashable {
         }
     }
     
-    // 为了让 Picker 能使用 tag，先写一个明确的 Hashable 返回值
     var hashableRawValue: AnyHashable {
         switch self {
         case .string(let s): return AnyHashable(s)
@@ -57,7 +54,6 @@ enum AnyCodableValue: Codable, Hashable {
     }
 }
 
-// Hashable 协议
 struct PropertyOption: Codable, Hashable {
     let label: String
     let value: AnyCodableValue
@@ -85,7 +81,7 @@ struct WallpaperProject: Codable, Identifiable {
     let type: String?
     let preview: String?
     let description: String?
-    let general: WallpaperGeneral? // [NEW]
+    let general: WallpaperGeneral?
     
     var absolutePath: URL?
     var thumbnailPath: URL?
@@ -114,113 +110,8 @@ class WallpaperLibrary: ObservableObject {
         importFromFolder(url: storageURL)
     }
     
-    // --- [New] Scene Wallpaper Import Logic ---
-    
-    func importSceneWallpaper(url: URL, reportProgress: @escaping (String) -> Void, completion: @escaping (Bool, String) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            reportProgress("Analyzing input...")
-            
-            let fileManager = FileManager.default
-            let wallpaperName = url.lastPathComponent
-            let destinationFolder = self.storageURL.appendingPathComponent(wallpaperName)
-            
-            // Identify Source Type
-            var pkgFile: URL? = nil
-            var isFolder = false
-            
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-                isFolder = isDirectory.boolValue
-            }
-            
-            // Determine operation
-            if !isFolder && url.pathExtension == "pkg" {
-                pkgFile = url
-            } else if isFolder {
-                let checkPkg = url.appendingPathComponent("scene.pkg")
-                if fileManager.fileExists(atPath: checkPkg.path) {
-                    pkgFile = checkPkg
-                }
-            }
-            
-            // Unpack or Copy
-            do {
-                if fileManager.fileExists(atPath: destinationFolder.path) {
-                    // Cleanup existing if overwrite needed, or fail. For now, assume overwrite.
-                    try? fileManager.removeItem(at: destinationFolder)
-                }
-                
-                if let pkg = pkgFile {
-                    reportProgress("Unpacking scene.pkg...")
-                    guard let parserPath = Bundle.main.url(forResource: "pkg_parser", withExtension: nil) else {
-                        DispatchQueue.main.async { completion(false, "Missing pkg_parser tool.") }; return
-                    }
-                    
-                    // Call pkg_parser <scene.pkg> <destination_folder>
-                    let process = Process()
-                    process.executableURL = parserPath
-                    process.arguments = [pkg.path, destinationFolder.path]
-                    
-                    try process.run()
-                    process.waitUntilExit()
-                    
-                    if process.terminationStatus != 0 {
-                        DispatchQueue.main.async { completion(false, "pkg_parser failed with code \(process.terminationStatus).") }; return
-                    }
-                } else {
-                    // Folder without pkg (already unpacked?), just copy
-                    reportProgress("Copying files...")
-                    try fileManager.copyItem(at: url, to: destinationFolder)
-                }
-                
-                // Parse Models (if models folder exists)
-                let modelsFolder = destinationFolder.appendingPathComponent("models")
-                if fileManager.fileExists(atPath: modelsFolder.path) {
-                    // Check for .mdl files
-                    if let enumerator = fileManager.enumerator(at: modelsFolder, includingPropertiesForKeys: nil) {
-                        var hasMdl = false
-                        for case let fileURL as URL in enumerator {
-                            if fileURL.pathExtension == "mdl" { hasMdl = true; break }
-                        }
-                        
-                        if hasMdl {
-                            reportProgress("Converting models...")
-                            guard let mdlParserPath = Bundle.main.url(forResource: "mdl_parser", withExtension: nil) else {
-                                DispatchQueue.main.async { completion(false, "Missing mdl_parser tool.") }; return
-                            }
-                            
-                            // Call mdl_parser <models_folder>
-                            let process = Process()
-                            process.executableURL = mdlParserPath
-                            process.arguments = [modelsFolder.path]
-                            
-                            try process.run()
-                            process.waitUntilExit()
-                            // We ignore errors here as some models might fail but others work
-                        }
-                    }
-                }
-                
-                // Handle Thumbnail & Finalize
-                reportProgress("Finalizing...")
-                let projectJsonURL = destinationFolder.appendingPathComponent("project.json")
-                if fileManager.fileExists(atPath: projectJsonURL.path) {
-                    // Assuming project.json exists and is valid, WallpaperLibrary will parse it on reload
-                    self.importFromFolder(url: destinationFolder)
-                    DispatchQueue.main.async { completion(true, "Wallpaper imported successfully.") }
-                } else {
-                    DispatchQueue.main.async { completion(false, "Invalid scene wallpaper: missing project.json") }
-                }
-                
-            } catch {
-                DispatchQueue.main.async { completion(false, "Import failed: \(error.localizedDescription)") }
-            }
-        }
-    }
-    
     @discardableResult
     func importVideoFile(url: URL, title: String) -> Bool {
-        // (Use existing logic from file_content_fetcher response)
         let safeTitle = title.isEmpty ? url.deletingPathExtension().lastPathComponent : title
         let folderName = safeTitle.components(separatedBy: CharacterSet(charactersIn: "/\\?%*|\"<>:")).joined()
         let destinationFolder = storageURL.appendingPathComponent(folderName)
@@ -274,12 +165,6 @@ class WallpaperLibrary: ObservableObject {
             let folder = url.deletingLastPathComponent()
             project.absolutePath = folder.appendingPathComponent(project.file ?? "index.html")
             
-            // Validate absolute path existence
-            if let path = project.absolutePath, !FileManager.default.fileExists(atPath: path.path) {
-                // Some project.jsons might point to .json files inside for scene, which is fine
-                // But if file is missing completely, we might warn.
-            }
-
             if let preview = project.preview {
                 project.thumbnailPath = folder.appendingPathComponent(preview)
             }
@@ -287,15 +172,13 @@ class WallpaperLibrary: ObservableObject {
             DispatchQueue.main.async {
                 if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
                     let type = project.type?.lowercased() ?? ""
-                    // Accept 'scene' type
-                    if type == "video" || type == "web" || type == "scene" {
+                    if type == "video" || type == "web" {
                         self.wallpapers.append(project)
                         self.wallpapers.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
                     }
                 }
             }
         } catch {
-            print("Parse Error: \(error)")
         }
     }
     
@@ -331,5 +214,25 @@ class WallpaperLibrary: ObservableObject {
                 self.wallpapers.remove(at: verifyIndex)
             }
         }
+    }
+    
+    func factoryReset() {
+        let fileManager = FileManager.default
+        let storagePath = storageURL.path
+        
+        for wallpaper in wallpapers {
+            if let path = wallpaper.absolutePath {
+                let folder = path.deletingLastPathComponent()
+                if folder.path.hasPrefix(storagePath) {
+                    try? fileManager.removeItem(at: folder)
+                }
+            }
+        }
+        
+        DispatchQueue.main.async {
+            self.wallpapers.removeAll()
+        }
+        
+        UserDefaults.standard.removeObject(forKey: bookmarksKey)
     }
 }

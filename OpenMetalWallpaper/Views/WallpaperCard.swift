@@ -11,20 +11,17 @@ struct WallpaperCard: View {
     let wallpaper: WallpaperProject
     @State private var isHovering = false
     
-    // Type Mapping
     var typeLabel: String {
         let type = wallpaper.type?.lowercased() ?? "video"
         switch type {
         case "video": return "视频"
         case "web": return "网页"
-        case "scene": return "场景"
         default: return type.uppercased()
         }
     }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Thumbnail area
             ZStack(alignment: .topLeading) {
                 Color.black.opacity(0.3)
                 
@@ -43,7 +40,6 @@ struct WallpaperCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 
-                // Glass Texture Badge
                 Text(typeLabel)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white.opacity(0.9))
@@ -56,7 +52,6 @@ struct WallpaperCard: View {
                     .padding(8)
                     .shadow(radius: 2)
                 
-                // Play overlay
                 if isHovering {
                     Color.black.opacity(0.4)
                     Image(systemName: "play.circle.fill")
@@ -68,7 +63,6 @@ struct WallpaperCard: View {
             }
             .frame(height: 120)
             
-            // Info
             VStack(alignment: .leading, spacing: 4) {
                 Text(wallpaper.title)
                     .font(.headline)
@@ -82,7 +76,6 @@ struct WallpaperCard: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            // [Fixed] Changed invalid .controlBackgroundColor to .popover (Correct Material)
             .background(VisualEffectView(material: .popover, blendingMode: .withinWindow))
         }
         .cornerRadius(12)
