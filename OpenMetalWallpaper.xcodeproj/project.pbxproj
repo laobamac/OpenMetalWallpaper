@@ -39,6 +39,7 @@
 			membershipExceptions = (
 				Info.plist,
 				Utils/mdl_parser.m,
+				Utils/pkg_parser.m,
 				Utils/PkgUnpackViewer.py,
 				Utils/ResAdder.py,
 				Utils/SceneTexViewer.py,
