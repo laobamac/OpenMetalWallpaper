@@ -38,10 +38,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				mdl_parser,
-				pkg_unpacker,
 				Utils/mdl_parser.m,
-				Utils/pkg_unpacker.m,
 				Utils/PkgUnpackViewer.py,
 				Utils/ResAdder.py,
 				Utils/SceneTexViewer.py,
