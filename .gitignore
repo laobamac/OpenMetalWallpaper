@@ -60,13 +60,6 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
-build.sh
 tmp*
 Open*.app
 Open*.dmg
-OpenMetalWallpaper/mdl_parser*
-OpenMetalWallpaper/pkg_parser*
-PkgUnpackViewer.py
-SceneTexViewer.py
-pkg_unpacker*
-Utils
