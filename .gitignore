@@ -63,3 +63,5 @@ fastlane/test_output
 tmp*
 Open*.app
 Open*.dmg
+OpenMetalWallpaper/mdl_parser
+OpenMetalWallpaper/pkg_parser
