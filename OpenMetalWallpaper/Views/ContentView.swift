@@ -123,49 +123,49 @@ struct ContentView: View {
                         
                         ScrollView {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 240), spacing: 16)], spacing: 16) {
-                                if filteredWallpapers.isEmpty {
-                                    EmptyStateView(isImporting: $isImporting).transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                } else {
-                                    ForEach(filteredWallpapers) { wallpaper in
-                                        WallpaperCard(wallpaper: wallpaper)
-                                            .onTapGesture {
-                                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                                                    self.selectedWallpaper = wallpaper
-                                                    applyWallpaper(wallpaper)
-                                                }
-                                            }
-                                            .contextMenu {
-                                                Button(NSLocalizedString("show_in_finder", comment: "")) {
-                                                    if let path = wallpaper.absolutePath { NSWorkspace.shared.activateFileViewerSelecting([path]) }
-                                                }
-                                                let type = wallpaper.type?.lowercased() ?? "video"
-                                                if type == "video" {
-                                                    Button(action: {
-                                                        if let path = wallpaper.absolutePath {
-                                                            WallpaperPersistence.shared.setScreensaverConfig(wallpaperId: wallpaper.id, filePath: path, loadToMemory: loadToMemory)
-                                                            showScreensaverSetAlert = true
-                                                        }
-                                                    }) { Label("设置为动态屏保", systemImage: "display.2") }
-                                                }
-                                                Divider()
-                                                Button(NSLocalizedString("remove_from_list", comment: "")) {
-                                                    stopWallpaper(wallpaper.id)
-                                                    library.removeWallpaper(id: wallpaper.id, deleteFile: false)
-                                                    if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
-                                                }
-                                                Button(NSLocalizedString("delete_wallpaper_file", comment: ""), role: .destructive) {
-                                                    stopWallpaper(wallpaper.id)
-                                                    library.removeWallpaper(id: wallpaper.id, deleteFile: true)
-                                                    if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
-                                                }
-                                            }
-                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: selectedWallpaper?.id == wallpaper.id ? 4 : 0).animation(.easeInOut(duration: 0.2), value: selectedWallpaper?.id))
+                            ForEach(filteredWallpapers) { wallpaper in
+                                WallpaperCard(wallpaper: wallpaper)
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                            self.selectedWallpaper = wallpaper
+                                            applyWallpaper(wallpaper)
+                                        }
                                     }
-                                }
+                                    .contextMenu {
+                                        Button(NSLocalizedString("show_in_finder", comment: "")) {
+                                            if let path = wallpaper.absolutePath { NSWorkspace.shared.activateFileViewerSelecting([path]) }
+                                        }
+                                        let type = wallpaper.type?.lowercased() ?? "video"
+                                        if type == "video" {
+                                            Button(action: {
+                                                if let path = wallpaper.absolutePath {                                                        WallpaperPersistence.shared.setScreensaverConfig(wallpaperId: wallpaper.id, filePath: path, loadToMemory: loadToMemory)
+                                                    showScreensaverSetAlert = true
+                                                }
+                                            }) { Label(" ", systemImage: "display.2") }
+                                        }
+                                        Divider()
+                                        Button(NSLocalizedString("remove_from_list", comment: "")) {
+                                            stopWallpaper(wallpaper.id)
+                                            library.removeWallpaper(id: wallpaper.id, deleteFile: false)
+                                            if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
+                                        }
+                                        Button(NSLocalizedString("delete_wallpaper_file", comment: ""), role: .destructive) {
+                                            stopWallpaper(wallpaper.id)
+                                            library.removeWallpaper(id: wallpaper.id, deleteFile: true)
+                                            if selectedWallpaper?.id == wallpaper.id { selectedWallpaper = nil }
+                                        }
+                                    }
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor, lineWidth: selectedWallpaper?.id == wallpaper.id ? 4 : 0).animation(.easeInOut(duration: 0.2), value: selectedWallpaper?.id))
                             }
-                            .padding()
-                            .animation(.easeInOut(duration: 0.3), value: selectedCategory)
                         }
+                        .padding()
+                        .animation(.easeInOut(duration: 0.3), value: selectedCategory)
+                    }
+                    .overlay {
+                        if filteredWallpapers.isEmpty {
+                            EmptyStateView(isImporting: $isImporting).transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
+                    }
                         
                         Divider()
                         
