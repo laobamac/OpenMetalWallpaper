@@ -143,8 +143,9 @@ class ScenePlayerEngine: NSObject, WallpaperPlayer {
     }
 
     func setPostProcessing(brightness: Float, contrast: Float, saturation: Float) {
-        var ctx = renderer?.sceneContext
-        ctx?.bloomStrength = max(0, brightness * 2.0)
+        renderer?.sceneContext.brightness = brightness
+        renderer?.sceneContext.contrast = contrast
+        renderer?.sceneContext.saturation = saturation
     }
 
     func setBackgroundColor(_ color: NSColor) {
@@ -159,21 +160,26 @@ class ScenePlayerEngine: NSObject, WallpaperPlayer {
     }
 
     func updateScaling(mode: WallpaperScaleMode, scale: CGFloat, x: CGFloat, y: CGFloat, rotation: Int) {
+        renderer?.sceneContext.scaleMode = mode
         guard let mtkView = self.mtkView, let superview = mtkView.superview else { return }
-        var frame = superview.bounds
+        let baseFrame = superview.bounds
         let angleRad = CGFloat(rotation % 360) * (.pi / 180.0)
-        if abs(angleRad).truncatingRemainder(dividingBy: .pi) > 0.1 {
-            mtkView.frame = frame
+        var targetFrame = baseFrame
+        if mode == .custom {
+            let scaledWidth = baseFrame.width * scale
+            let scaledHeight = baseFrame.height * scale
+            targetFrame = CGRect(
+                x: (baseFrame.width - scaledWidth) / 2 + x,
+                y: (baseFrame.height - scaledHeight) / 2 + y,
+                width: scaledWidth,
+                height: scaledHeight
+            )
+        }
+        mtkView.frame = targetFrame
+        if abs(angleRad) > 0.001 {
             mtkView.layer?.transform = CATransform3DMakeRotation(angleRad, 0, 0, 1)
         } else {
             mtkView.layer?.transform = CATransform3DIdentity
-            if mode == .fill {
-                mtkView.frame = frame
-            } else if mode == .fit {
-                mtkView.frame = frame
-            } else if mode == .stretch {
-                mtkView.frame = frame
-            }
         }
     }
 
@@ -182,20 +188,17 @@ class ScenePlayerEngine: NSObject, WallpaperPlayer {
             completion(nil)
             return
         }
-
         let width = texture.width
         let height = texture.height
         let rowBytes = width * 4
         let totalBytes = rowBytes * height
         var pixels = Data(count: totalBytes)
-
         pixels.withUnsafeMutableBytes { ptr in
             guard let basePtr = ptr.baseAddress else { return }
             texture.getBytes(basePtr, bytesPerRow: rowBytes, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
         }
-
         let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        let bitmapInfo = CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue)
         if let provider = CGDataProvider(data: pixels as CFData),
            let cgImage = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: rowBytes, space: colorSpace, bitmapInfo: bitmapInfo, provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent) {
             completion(NSImage(cgImage: cgImage, size: NSSize(width: width, height: height)))

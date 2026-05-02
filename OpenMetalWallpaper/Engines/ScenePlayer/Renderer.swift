@@ -168,16 +168,31 @@ class Renderer: NSObject, MTKViewDelegate {
 
         let targetAspect = Double(sceneContext.projectionSize.width / sceneContext.projectionSize.height)
         let currentAspect = Double(view.drawableSize.width / view.drawableSize.height)
-        var drawWidth = Double(view.drawableSize.width)
-        var drawHeight = Double(view.drawableSize.height)
+        let viewWidth = Double(view.drawableSize.width)
+        let viewHeight = Double(view.drawableSize.height)
+        var drawWidth = viewWidth
+        var drawHeight = viewHeight
         var vx: Double = 0
         var vy: Double = 0
-        if currentAspect > targetAspect {
-            drawWidth = Double(view.drawableSize.height) * targetAspect
-            vx = (Double(view.drawableSize.width) - drawWidth) / 2
-        } else {
-            drawHeight = Double(view.drawableSize.width) / targetAspect
-            vy = (Double(view.drawableSize.height) - drawHeight) / 2
+        switch sceneContext.scaleMode {
+        case .fill, .custom:
+            if currentAspect > targetAspect {
+                drawHeight = viewWidth / targetAspect
+                vy = (viewHeight - drawHeight) / 2
+            } else {
+                drawWidth = viewHeight * targetAspect
+                vx = (viewWidth - drawWidth) / 2
+            }
+        case .fit:
+            if currentAspect > targetAspect {
+                drawWidth = viewHeight * targetAspect
+                vx = (viewWidth - drawWidth) / 2
+            } else {
+                drawHeight = viewWidth / targetAspect
+                vy = (viewHeight - drawHeight) / 2
+            }
+        case .stretch:
+            break
         }
         encoder.setViewport(MTLViewport(originX: vx, originY: vy, width: drawWidth, height: drawHeight, znear: 0, zfar: 1))
 
@@ -287,8 +302,10 @@ class Renderer: NSObject, MTKViewDelegate {
             finalEncoder.setFragmentSamplerState(sampler, index: 0)
             var bStrength = sceneContext.bloomStrength
             var isHDR = sceneContext.isHDREnabled
+            var postParams = SIMD3<Float>(sceneContext.brightness, sceneContext.contrast, sceneContext.saturation)
             finalEncoder.setFragmentBytes(&bStrength, length: 4, index: 0)
             finalEncoder.setFragmentBytes(&isHDR, length: 1, index: 1)
+            finalEncoder.setFragmentBytes(&postParams, length: MemoryLayout<SIMD3<Float>>.size, index: 2)
             finalEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
             finalEncoder.endEncoding()
         }

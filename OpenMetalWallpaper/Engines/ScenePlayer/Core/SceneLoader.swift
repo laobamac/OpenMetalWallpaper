@@ -17,6 +17,10 @@ struct SceneContext {
     var bloomStrength: Float = 2.0
     var bloomIterations: Int = 8
     var isHDREnabled: Bool = false
+    var scaleMode: WallpaperScaleMode = .fill
+    var brightness: Float = 0.0
+    var contrast: Float = 1.0
+    var saturation: Float = 1.0
 }
 
 class SceneLoader {

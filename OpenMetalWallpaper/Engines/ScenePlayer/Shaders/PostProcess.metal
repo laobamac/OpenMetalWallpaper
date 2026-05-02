@@ -80,7 +80,8 @@ fragment float4 fragment_final(VertexOut in [[stage_in]],
                                texture2d<float> bloomTexture [[texture(1)]],
                                sampler s [[sampler(0)]],
                                constant float &bloomStrength [[buffer(0)]],
-                               constant bool &isHDREnabled [[buffer(1)]]) {
+                               constant bool &isHDREnabled [[buffer(1)]],
+                               constant float3 &postParams [[buffer(2)]]) {
     float3 sceneColor = sceneTexture.sample(s, in.texCoord).rgb;
     float3 bloomColor = bloomTexture.sample(s, in.texCoord).rgb;
     float3 color = sceneColor + bloomColor * bloomStrength;
@@ -88,5 +89,10 @@ fragment float4 fragment_final(VertexOut in [[stage_in]],
         color = aces_tonemap(color);
     }
     color = pow(color, 1.0 / 2.2);
+    color += postParams.x;
+    color = (color - 0.5) * postParams.y + 0.5;
+    float luma = dot(color, float3(0.2126, 0.7152, 0.0722));
+    color = mix(float3(luma), color, postParams.z);
+    color = saturate(color);
     return float4(color, 1.0);
 }
