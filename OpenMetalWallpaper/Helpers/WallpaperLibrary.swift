@@ -172,7 +172,7 @@ class WallpaperLibrary: ObservableObject {
             DispatchQueue.main.async {
                 if !self.wallpapers.contains(where: { $0.absolutePath == project.absolutePath }) {
                     let type = project.type?.lowercased() ?? ""
-                    if type == "video" || type == "web" {
+                    if type == "video" || type == "web" || type == "scene" {
                         self.wallpapers.append(project)
                         self.wallpapers.sort { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
                     }

@@ -7,9 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BB04E7E22FA5B06500E8310B /* Utils in Resources */ = {isa = PBXBuildFile; fileRef = BB04E7E12FA5B06500E8310B /* Utils */; };
+		BB04E7E42FA5B06900E8310B /* WEAssets in Resources */ = {isa = PBXBuildFile; fileRef = BB04E7E32FA5B06900E8310B /* WEAssets */; };
 		BB713B922F1A454A00984369 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB713B552F1A28CA00984369 /* AVFoundation.framework */; };
 		BB713B952F1A454C00984369 /* Combine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB713B572F1A28D000984369 /* Combine.framework */; };
 		BB713BA32F1A474B00984369 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB713BA22F1A474B00984369 /* SwiftUI.framework */; };
+		BB713BC22F1A454A00984370 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB713BC02F1A474B00984370 /* Metal.framework */; };
+		BB713BC32F1A454A00984371 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB713BC12F1A474B00984371 /* MetalKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,10 +30,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BB04E7E12FA5B06500E8310B /* Utils */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Utils; path = ../SceneRendererDev/Utils; sourceTree = "<group>"; };
+		BB04E7E32FA5B06900E8310B /* WEAssets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WEAssets; path = ../SceneRendererDev/WEAssets; sourceTree = "<group>"; };
 		BB713B282F1A22B600984369 /* OpenMetalWallpaper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenMetalWallpaper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB713B552F1A28CA00984369 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		BB713B572F1A28D000984369 /* Combine.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Combine.framework; path = System/Library/Frameworks/Combine.framework; sourceTree = SDKROOT; };
 		BB713BA22F1A474B00984369 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		BB713BC02F1A474B00984370 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		BB713BC12F1A474B00984371 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		BBA4E7EC2F1FB7F1002EB5F5 /* OpenMetalScreensaver.saver */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMetalScreensaver.saver; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -72,6 +80,8 @@
 				BB713B922F1A454A00984369 /* AVFoundation.framework in Frameworks */,
 				BB713BA32F1A474B00984369 /* SwiftUI.framework in Frameworks */,
 				BB713B952F1A454C00984369 /* Combine.framework in Frameworks */,
+				BB713BC22F1A454A00984370 /* Metal.framework in Frameworks */,
+				BB713BC32F1A454A00984371 /* MetalKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,6 +98,8 @@
 		BB713B1F2F1A22B500984369 = {
 			isa = PBXGroup;
 			children = (
+				BB04E7E32FA5B06900E8310B /* WEAssets */,
+				BB04E7E12FA5B06500E8310B /* Utils */,
 				BB713B2A2F1A22B600984369 /* OpenMetalWallpaper */,
 				BBA4E7ED2F1FB7F1002EB5F5 /* OpenMetalScreensaver */,
 				BB713B502F1A28BB00984369 /* Frameworks */,
@@ -110,6 +122,8 @@
 				BB713BA22F1A474B00984369 /* SwiftUI.framework */,
 				BB713B572F1A28D000984369 /* Combine.framework */,
 				BB713B552F1A28CA00984369 /* AVFoundation.framework */,
+				BB713BC02F1A474B00984370 /* Metal.framework */,
+				BB713BC12F1A474B00984371 /* MetalKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -219,6 +233,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB04E7E42FA5B06900E8310B /* WEAssets in Resources */,
+				BB04E7E22FA5B06500E8310B /* Utils in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -319,6 +319,8 @@ class ScreenController: NSObject {
             let player: WallpaperPlayer
             if wallpaperType == "web" {
                 player = WebPlayerEngine()
+            } else if wallpaperType == "scene" {
+                player = ScenePlayerEngine()
             } else {
                 player = VideoPlayerEngine()
             }

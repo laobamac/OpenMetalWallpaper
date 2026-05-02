@@ -74,7 +74,7 @@ struct WallpaperInspector: View {
                 
                 Divider()
                 
-                if wallpaper.type?.lowercased() == "web" {
+                if wallpaper.type?.lowercased() == "web" || wallpaper.type?.lowercased() == "scene" {
                     GroupBox {
                         Toggle("允许鼠标互动 (Allow Interaction)", isOn: Binding(
                             get: { isInteractive },
