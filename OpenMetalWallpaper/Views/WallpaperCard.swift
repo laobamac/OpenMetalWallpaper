@@ -16,7 +16,6 @@ struct WallpaperCard: View {
         switch type {
         case "video": return "视频"
         case "web": return "网页"
-        case "scene": return "场景"
         default: return type.uppercased()
         }
     }

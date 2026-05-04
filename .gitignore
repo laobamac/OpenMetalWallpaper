@@ -61,6 +61,7 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 tmp*
+.deriveddat
 Open*.app
 Open*.dmg
 OpenMetalWallpaper/mdl_parser
